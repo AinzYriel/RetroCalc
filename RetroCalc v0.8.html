@@ -1,0 +1,3343 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>∂/∂x · RetroCalc — AI Tutor Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.0/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nerdamer/1.1.13/nerdamer.core.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nerdamer/1.1.13/Calculus.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nerdamer/1.1.13/Algebra.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nerdamer/1.1.13/Solve.js"></script>
+<style>
+:root {
+  --bg: #0a0a1a;
+  --panel: #0f0f2a;
+  --panel2: #13132e;
+  --border: #2a2a6a;
+  --border-bright: #4a4aaa;
+  --accent: #00ffcc;
+  --accent2: #ff6bff;
+  --accent3: #ffcc00;
+  --accent4: #00aaff;
+  --text: #c8d8ff;
+  --text-dim: #6677aa;
+  --text-bright: #ffffff;
+  --btn: #1a1a4a;
+  --btn-hover: #2a2a6a;
+  --btn-active: #3a3aaa;
+  --solved: #002a1a;
+  --solved-border: #00aa66;
+  --error: #2a0010;
+  --error-border: #ff0066;
+  --step-bg: #0d0d25;
+  --step-border: #1e1e55;
+  --hint: #1a0a2a;
+  --hint-border: #aa33ff;
+  --formula-bg: #001525;
+  --formula-border: #0066aa;
+  --shadow: 0 0 0 2px var(--border), 0 4px 32px rgba(0,255,204,0.08);
+  --pixel-shadow: 4px 4px 0 #000;
+  --glow: 0 0 16px rgba(0,255,204,0.3);
+  --glow2: 0 0 16px rgba(255,107,255,0.3);
+}
+[data-theme="light"] {
+  --bg: #e8e8f8;
+  --panel: #f0f0ff;
+  --panel2: #e8e8f8;
+  --border: #8888cc;
+  --border-bright: #5555aa;
+  --accent: #0077aa;
+  --accent2: #aa00aa;
+  --accent3: #886600;
+  --accent4: #004488;
+  --text: #222255;
+  --text-dim: #7777aa;
+  --text-bright: #000033;
+  --btn: #d0d0f0;
+  --btn-hover: #b8b8e8;
+  --btn-active: #9898d8;
+  --solved: #e0fff0;
+  --solved-border: #00aa66;
+  --error: #ffe0e8;
+  --error-border: #cc0044;
+  --step-bg: #f5f5ff;
+  --step-border: #ccccee;
+  --hint: #f5eaff;
+  --hint-border: #9933cc;
+  --formula-bg: #e8f5ff;
+  --formula-border: #3399cc;
+  --shadow: 0 0 0 2px var(--border), 0 4px 16px rgba(0,0,128,0.1);
+  --pixel-shadow: 3px 3px 0 #8888cc;
+  --glow: 0 0 8px rgba(0,128,200,0.2);
+  --glow2: 0 0 8px rgba(170,0,170,0.2);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Share Tech Mono',monospace;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  overflow:hidden;
+  image-rendering:pixelated;
+}
+
+/* SCANLINES OVERLAY */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  z-index:9999;
+}
+
+/* ===== PIXEL BORDER MIXIN ===== */
+.px-panel{
+  border:3px solid var(--border);
+  box-shadow:var(--shadow);
+  position:relative;
+  background:var(--panel);
+}
+.px-panel::before{
+  content:'';
+  position:absolute;
+  inset:2px;
+  border:1px solid var(--border-bright);
+  pointer-events:none;
+  z-index:1;
+}
+
+/* ===== HEADER ===== */
+#header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:6px 16px;
+  background:var(--panel);
+  border-bottom:3px solid var(--border);
+  flex-shrink:0;
+  gap:8px;
+  z-index:100;
+}
+#logo{
+  font-family:'Press Start 2P',monospace;
+  font-size:11px;
+  color:var(--accent);
+  text-shadow:0 0 12px var(--accent),2px 2px 0 #000;
+  white-space:nowrap;
+  letter-spacing:1px;
+}
+#logo span{color:var(--accent2);text-shadow:0 0 12px var(--accent2),2px 2px 0 #000}
+#header-center{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:1;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.mode-btn{
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  padding:5px 8px;
+  border:2px solid var(--border);
+  background:var(--btn);
+  color:var(--text-dim);
+  cursor:pointer;
+  transition:all 0.1s;
+  image-rendering:pixelated;
+  box-shadow:var(--pixel-shadow);
+}
+.mode-btn:hover{background:var(--btn-hover);color:var(--text-bright);border-color:var(--accent);box-shadow:0 0 8px var(--accent),var(--pixel-shadow)}
+.mode-btn.active{background:var(--btn-active);color:var(--accent);border-color:var(--accent);box-shadow:0 0 12px var(--accent),var(--pixel-shadow)}
+#header-right{display:flex;align-items:center;gap:8px}
+.icon-btn{
+  width:30px;height:30px;
+  border:2px solid var(--border);
+  background:var(--btn);
+  color:var(--text);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  transition:all 0.15s;
+  box-shadow:var(--pixel-shadow);
+}
+.icon-btn:hover{border-color:var(--accent);box-shadow:0 0 8px var(--accent),var(--pixel-shadow)}
+
+/* ===== LEVEL / XP BAR ===== */
+#xp-bar{
+  height:4px;
+  background:var(--border);
+  flex:1;
+  max-width:200px;
+  border:1px solid var(--border-bright);
+  overflow:hidden;
+}
+#xp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width 0.5s}
+#xp-label{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--accent3);white-space:nowrap}
+
+/* ===== MAIN LAYOUT ===== */
+#app{
+  display:grid;
+  grid-template-columns:260px 1fr 380px;
+  flex:1;
+  overflow:hidden;
+  gap:0;
+}
+
+/* ===== LEFT PANEL ===== */
+#left-panel{
+  display:flex;
+  flex-direction:column;
+  border-right:3px solid var(--border);
+  overflow:hidden;
+  background:var(--panel);
+}
+.panel-title{
+  font-family:'Press Start 2P',monospace;
+  font-size:8px;
+  color:var(--accent3);
+  padding:8px 12px;
+  background:var(--panel2);
+  border-bottom:2px solid var(--border);
+  letter-spacing:1px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-shrink:0;
+}
+.panel-title .dot{
+  width:8px;height:8px;
+  border:2px solid currentColor;
+  display:inline-block;
+  animation:blink 1.2s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+#toolbox{flex:1;overflow-y:auto;padding:8px}
+#toolbox::-webkit-scrollbar{width:6px}
+#toolbox::-webkit-scrollbar-track{background:var(--panel)}
+#toolbox::-webkit-scrollbar-thumb{background:var(--border);border:1px solid var(--border-bright)}
+
+.tool-category{margin-bottom:10px}
+.tool-cat-label{
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  color:var(--text-dim);
+  padding:3px 4px;
+  margin-bottom:4px;
+  border-bottom:1px solid var(--border);
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.tool-grid{display:flex;flex-wrap:wrap;gap:3px}
+.tool-btn{
+  font-family:'VT323',monospace;
+  font-size:16px;
+  padding:3px 6px;
+  border:2px solid var(--border);
+  background:var(--btn);
+  color:var(--text);
+  cursor:pointer;
+  transition:all 0.1s;
+  min-width:32px;
+  text-align:center;
+  user-select:none;
+  box-shadow:2px 2px 0 #000;
+  line-height:1.2;
+}
+.tool-btn:hover{
+  background:var(--btn-hover);
+  border-color:var(--accent);
+  color:var(--accent);
+  box-shadow:0 0 6px var(--accent),2px 2px 0 #000;
+  transform:translateY(-1px);
+}
+.tool-btn:active{transform:translateY(0);box-shadow:1px 1px 0 #000}
+
+/* ===== CENTER PANEL ===== */
+#center-panel{
+  display:flex;
+  flex-direction:column;
+  border-right:3px solid var(--border);
+  overflow:hidden;
+  background:var(--panel);
+}
+#workspace-area{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+#math-display{
+  min-height:80px;
+  padding:12px 16px;
+  background:var(--step-bg);
+  border-bottom:2px solid var(--border);
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'VT323',monospace;
+  font-size:28px;
+  color:var(--text-bright);
+  word-break:break-all;
+  text-align:center;
+  position:relative;
+  min-height:90px;
+  cursor:text;
+}
+#math-display.placeholder{color:var(--text-dim);font-size:16px;font-family:'Share Tech Mono',monospace}
+#math-display .cursor-blink{
+  display:inline-block;
+  width:2px;height:1.2em;
+  background:var(--accent);
+  margin-left:2px;
+  animation:blink 0.8s step-end infinite;
+  vertical-align:middle;
+}
+
+#input-row{
+  display:flex;
+  gap:6px;
+  padding:8px 10px;
+  border-bottom:2px solid var(--border);
+  flex-shrink:0;
+  align-items:center;
+  background:var(--panel2);
+}
+#equation-input{
+  flex:1;
+  background:var(--step-bg);
+  border:2px solid var(--border);
+  color:var(--text-bright);
+  font-family:'VT323',monospace;
+  font-size:20px;
+  padding:6px 10px;
+  outline:none;
+  transition:border-color 0.2s;
+}
+#equation-input:focus{border-color:var(--accent);box-shadow:0 0 8px rgba(0,255,204,0.2)}
+#equation-input::placeholder{color:var(--text-dim);font-size:14px}
+
+.action-btn{
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  padding:7px 10px;
+  border:2px solid;
+  cursor:pointer;
+  transition:all 0.1s;
+  box-shadow:var(--pixel-shadow);
+  white-space:nowrap;
+}
+.action-btn.primary{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#000;
+}
+.action-btn.primary:hover{box-shadow:0 0 14px var(--accent),var(--pixel-shadow);transform:translateY(-1px)}
+.action-btn.secondary{
+  background:var(--btn);
+  border-color:var(--border);
+  color:var(--text);
+}
+.action-btn.secondary:hover{border-color:var(--accent2);color:var(--accent2);box-shadow:0 0 8px var(--accent2),var(--pixel-shadow)}
+.action-btn.danger{
+  background:var(--btn);
+  border-color:var(--error-border);
+  color:var(--error-border);
+}
+
+#graph-container{
+  flex:1;
+  overflow:hidden;
+  min-height:0;
+  position:relative;
+}
+#graph-plot{width:100%;height:100%}
+#graph-placeholder{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100%;
+  color:var(--text-dim);
+  font-family:'Press Start 2P',monospace;
+  font-size:8px;
+  gap:12px;
+  text-align:center;
+  padding:20px;
+}
+.graph-placeholder-icon{font-size:48px;opacity:0.3;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* example buttons */
+#examples-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  padding:6px 10px;
+  border-top:2px solid var(--border);
+  background:var(--panel2);
+  flex-shrink:0;
+  overflow-y:auto;
+  max-height:100px;
+}
+.ex-btn{
+  font-family:'VT323',monospace;
+  font-size:13px;
+  padding:3px 7px;
+  border:1px solid var(--border);
+  background:var(--btn);
+  color:var(--text-dim);
+  cursor:pointer;
+  transition:all 0.1s;
+  white-space:nowrap;
+}
+.ex-btn:hover{border-color:var(--accent3);color:var(--accent3);background:var(--btn-hover)}
+
+/* ===== RIGHT PANEL ===== */
+#right-panel{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:var(--panel);
+}
+#solution-container{
+  flex:1;
+  overflow-y:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+#solution-container::-webkit-scrollbar{width:6px}
+#solution-container::-webkit-scrollbar-track{background:var(--panel)}
+#solution-container::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* solution blocks */
+.sol-idle{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  flex:1;color:var(--text-dim);
+  font-family:'Press Start 2P',monospace;font-size:7px;gap:12px;text-align:center;padding:20px;
+}
+.sol-idle .idle-icon{font-size:40px;opacity:0.4;animation:float 4s ease-in-out infinite}
+
+.step-card{
+  border:2px solid var(--step-border);
+  background:var(--step-bg);
+  padding:10px 12px;
+  position:relative;
+  animation:slideIn 0.2s ease-out;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+.step-card::before{
+  content:'';
+  position:absolute;
+  top:-1px;left:-1px;right:-1px;bottom:-1px;
+  border:1px solid rgba(255,255,255,0.04);
+  pointer-events:none;
+}
+.step-number{
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  color:var(--accent3);
+  margin-bottom:6px;
+  display:flex;align-items:center;gap:6px;
+}
+.step-number::after{content:'';flex:1;height:1px;background:var(--step-border)}
+.step-title{
+  font-family:'Press Start 2P',monospace;
+  font-size:8px;
+  color:var(--text-bright);
+  margin-bottom:6px;
+}
+.step-body{
+  font-family:'VT323',monospace;
+  font-size:17px;
+  color:var(--text);
+  line-height:1.5;
+}
+.step-body .math-expr{
+  color:var(--accent);
+  font-size:20px;
+}
+.step-body .highlight{
+  color:var(--accent3);
+  background:rgba(255,204,0,0.08);
+  padding:0 3px;
+}
+.step-body .rule-tag{
+  display:inline-block;
+  border:1px solid var(--accent2);
+  color:var(--accent2);
+  padding:1px 6px;
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  margin:2px;
+}
+.step-body .error-tag{
+  display:inline-block;
+  border:1px solid var(--error-border);
+  color:var(--error-border);
+  padding:2px 6px;
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+}
+
+.final-answer-card{
+  border:3px solid var(--accent);
+  background:linear-gradient(135deg,var(--solved),var(--step-bg));
+  padding:14px 16px;
+  text-align:center;
+  box-shadow:0 0 20px rgba(0,255,204,0.2),var(--pixel-shadow);
+  animation:pulseIn 0.4s ease-out;
+  position:relative;
+  overflow:hidden;
+}
+.final-answer-card::after{
+  content:'SOLVED!';
+  position:absolute;
+  top:4px;right:6px;
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  color:var(--accent);
+  opacity:0.6;
+  animation:blink 1.5s step-end infinite;
+}
+@keyframes pulseIn{0%{transform:scale(0.95);opacity:0}60%{transform:scale(1.02)}100%{transform:scale(1);opacity:1}}
+.final-answer-label{
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  color:var(--accent3);
+  margin-bottom:8px;
+  letter-spacing:2px;
+}
+.final-answer-value{
+  font-family:'VT323',monospace;
+  font-size:28px;
+  color:var(--accent);
+  text-shadow:0 0 12px var(--accent);
+  word-break:break-all;
+}
+
+.formula-card{
+  border:2px solid var(--formula-border);
+  background:var(--formula-bg);
+  padding:10px 12px;
+}
+.formula-label{
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  color:var(--accent4);
+  margin-bottom:6px;
+  letter-spacing:1px;
+}
+.formula-body{
+  font-family:'VT323',monospace;
+  font-size:20px;
+  color:var(--accent4);
+}
+
+.hint-card{
+  border:2px solid var(--hint-border);
+  background:var(--hint);
+  padding:8px 12px;
+  cursor:pointer;
+}
+.hint-header{
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  color:var(--accent2);
+  margin-bottom:4px;
+  display:flex;align-items:center;gap:6px;
+}
+.hint-body{
+  font-family:'VT323',monospace;
+  font-size:16px;
+  color:var(--text-dim);
+}
+.hint-body.revealed{color:var(--text);font-size:17px}
+
+/* practice quiz */
+.quiz-card{
+  border:2px solid var(--accent3);
+  background:rgba(255,204,0,0.04);
+  padding:12px;
+}
+.quiz-q{
+  font-family:'VT323',monospace;
+  font-size:18px;
+  color:var(--text-bright);
+  margin-bottom:8px;
+}
+.quiz-options{display:flex;flex-direction:column;gap:4px}
+.quiz-opt{
+  font-family:'VT323',monospace;
+  font-size:16px;
+  padding:5px 10px;
+  border:2px solid var(--border);
+  background:var(--btn);
+  color:var(--text);
+  cursor:pointer;
+  text-align:left;
+  transition:all 0.1s;
+}
+.quiz-opt:hover{border-color:var(--accent3);color:var(--accent3)}
+.quiz-opt.correct{border-color:var(--accent);background:var(--solved);color:var(--accent)}
+.quiz-opt.wrong{border-color:var(--error-border);background:var(--error);color:var(--error-border)}
+
+/* AI chat area */
+#ai-chat-row{
+  border-top:3px solid var(--border);
+  background:var(--panel2);
+  flex-shrink:0;
+}
+#ai-messages{
+  height:100px;
+  overflow-y:auto;
+  padding:6px 10px;
+  display:flex;flex-direction:column;gap:4px;
+}
+#ai-messages::-webkit-scrollbar{width:4px}
+#ai-messages::-webkit-scrollbar-thumb{background:var(--border)}
+.ai-msg{
+  font-family:'VT323',monospace;
+  font-size:15px;
+  padding:4px 8px;
+  border-left:2px solid var(--accent2);
+  color:var(--text);
+  background:rgba(255,107,255,0.04);
+}
+.ai-msg.user{
+  border-left-color:var(--accent);
+  background:rgba(0,255,204,0.04);
+  color:var(--text-dim);
+  font-size:14px;
+}
+.ai-msg .ai-label{
+  font-family:'Press Start 2P',monospace;
+  font-size:5px;
+  color:var(--accent2);
+  margin-bottom:2px;
+}
+#ai-input-row{
+  display:flex;
+  gap:4px;
+  padding:6px 8px;
+  border-top:1px solid var(--border);
+}
+#ai-input{
+  flex:1;
+  background:var(--step-bg);
+  border:2px solid var(--border);
+  color:var(--text-bright);
+  font-family:'VT323',monospace;
+  font-size:16px;
+  padding:4px 8px;
+  outline:none;
+}
+#ai-input:focus{border-color:var(--accent2)}
+#ai-send{
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  padding:5px 8px;
+  border:2px solid var(--accent2);
+  background:var(--btn);
+  color:var(--accent2);
+  cursor:pointer;
+  box-shadow:2px 2px 0 #000;
+}
+#ai-send:hover{background:var(--accent2);color:#000}
+
+/* progress bar bottom */
+#status-bar{
+  padding:3px 12px;
+  background:var(--panel2);
+  border-top:2px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-family:'Press Start 2P',monospace;
+  font-size:5px;
+  color:var(--text-dim);
+  flex-shrink:0;
+  flex-wrap:wrap;
+}
+.stat-item{display:flex;align-items:center;gap:4px}
+.stat-val{color:var(--accent3)}
+
+/* loading animation */
+.loading-dots::after{
+  content:'';
+  animation:dots 1.5s steps(4,end) infinite;
+}
+@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}100%{content:''}}
+
+/* MOBILE responsive */
+@media(max-width:900px){
+  #app{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr auto;
+    overflow-y:auto;
+  }
+  #left-panel{
+    border-right:none;
+    border-bottom:3px solid var(--border);
+    max-height:220px;
+    overflow-y:auto;
+  }
+  #left-panel #toolbox{padding:6px}
+  #right-panel{
+    border-left:none;
+    border-top:3px solid var(--border);
+    min-height:400px;
+  }
+  body,html{overflow-y:auto}
+  body::before{display:none}
+  #graph-container{min-height:250px}
+  #logo{font-size:8px}
+}
+@media(max-width:600px){
+  #logo{font-size:7px}
+  .mode-btn{font-size:6px;padding:4px 5px}
+  #math-display{font-size:22px}
+}
+
+/* diff/int tab pills */
+#op-tabs{
+  display:flex;
+  gap:0;
+  border-bottom:2px solid var(--border);
+  flex-shrink:0;
+}
+.op-tab{
+  flex:1;
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  padding:7px;
+  background:var(--panel2);
+  border:none;
+  border-right:2px solid var(--border);
+  color:var(--text-dim);
+  cursor:pointer;
+  transition:all 0.15s;
+  text-align:center;
+}
+.op-tab:last-child{border-right:none}
+.op-tab.active{
+  background:var(--panel);
+  color:var(--accent);
+  border-bottom:2px solid var(--accent);
+  margin-bottom:-2px;
+}
+.op-tab:hover:not(.active){background:var(--btn-hover);color:var(--text)}
+
+/* bounds row for definite integral */
+#bounds-row{
+  display:none;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  background:var(--panel2);
+  border-bottom:1px solid var(--border);
+  font-family:'VT323',monospace;
+  font-size:16px;
+  color:var(--text-dim);
+  flex-shrink:0;
+}
+#bounds-row.visible{display:flex}
+.bounds-input{
+  width:60px;
+  background:var(--step-bg);
+  border:2px solid var(--border);
+  color:var(--text-bright);
+  font-family:'VT323',monospace;
+  font-size:18px;
+  padding:2px 6px;
+  outline:none;
+  text-align:center;
+}
+.bounds-input:focus{border-color:var(--accent3)}
+
+/* pixel corner decorators */
+.px-corner{
+  position:absolute;
+  width:6px;height:6px;
+  border-color:var(--accent);
+}
+.px-corner.tl{top:0;left:0;border-top:2px solid;border-left:2px solid}
+.px-corner.tr{top:0;right:0;border-top:2px solid;border-right:2px solid}
+.px-corner.bl{bottom:0;left:0;border-bottom:2px solid;border-left:2px solid}
+.px-corner.br{bottom:0;right:0;border-bottom:2px solid;border-right:2px solid}
+
+/* toast */
+#toast{
+  position:fixed;
+  bottom:40px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);
+  border:2px solid var(--accent3);
+  color:var(--accent3);
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  padding:8px 16px;
+  box-shadow:var(--pixel-shadow),0 0 12px var(--accent3);
+  z-index:9998;
+  opacity:0;
+  transition:all 0.3s;
+  pointer-events:none;
+  white-space:nowrap;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* sparkle on solve */
+@keyframes sparkle{
+  0%{transform:scale(0) rotate(0);opacity:1}
+  100%{transform:scale(1.5) rotate(360deg);opacity:0}
+}
+.sparkle{
+  position:fixed;
+  pointer-events:none;
+  font-size:20px;
+  animation:sparkle 0.6s ease-out forwards;
+  z-index:9000;
+}
+
+/* rule library panel toggle */
+#rule-lib-btn{
+  font-family:'Press Start 2P',monospace;
+  font-size:6px;
+  padding:4px 8px;
+  border:2px solid var(--accent3);
+  background:var(--btn);
+  color:var(--accent3);
+  cursor:pointer;
+  box-shadow:var(--pixel-shadow);
+}
+#rule-lib-btn:hover{background:var(--accent3);color:#000}
+
+#rule-lib-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:500;
+  align-items:center;
+  justify-content:center;
+}
+#rule-lib-overlay.open{display:flex}
+#rule-lib-modal{
+  background:var(--panel);
+  border:3px solid var(--accent3);
+  width:min(700px,95vw);
+  max-height:85vh;
+  overflow-y:auto;
+  padding:16px;
+  box-shadow:0 0 40px rgba(255,204,0,0.3),var(--pixel-shadow);
+  position:relative;
+}
+#rule-lib-modal::-webkit-scrollbar{width:6px}
+#rule-lib-modal::-webkit-scrollbar-thumb{background:var(--border)}
+.rule-item{
+  border:2px solid var(--border);
+  padding:10px 12px;
+  margin-bottom:8px;
+  background:var(--step-bg);
+  cursor:pointer;
+  transition:border-color 0.15s;
+}
+.rule-item:hover{border-color:var(--accent3)}
+.rule-item .rule-name{
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  color:var(--accent3);
+  margin-bottom:4px;
+}
+.rule-item .rule-formula{
+  font-family:'VT323',monospace;
+  font-size:18px;
+  color:var(--accent4);
+  margin-bottom:4px;
+}
+.rule-item .rule-desc{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  color:var(--text-dim);
+  line-height:1.5;
+}
+.rule-item .rule-example{
+  margin-top:6px;
+  font-family:'VT323',monospace;
+  font-size:15px;
+  color:var(--text);
+  border-left:2px solid var(--accent);
+  padding-left:8px;
+}
+.rule-section-header{
+  font-family:'Press Start 2P',monospace;
+  font-size:9px;
+  color:var(--accent2);
+  padding:8px 0 4px;
+  border-bottom:2px solid var(--border);
+  margin-bottom:8px;
+}
+.modal-close{
+  position:absolute;
+  top:8px;right:8px;
+  font-family:'Press Start 2P',monospace;
+  font-size:8px;
+  background:var(--btn);
+  border:2px solid var(--error-border);
+  color:var(--error-border);
+  cursor:pointer;
+  padding:4px 8px;
+  box-shadow:var(--pixel-shadow);
+}
+
+/* tab separator lines */
+.divider{
+  border:none;
+  border-top:1px solid var(--border);
+  margin:6px 0;
+}
+
+/* ===== PASSWORD GATE ===== */
+#pw-gate{
+  position:fixed;
+  inset:0;
+  background:#0a0a1a;
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:0;
+}
+#pw-gate.hidden{display:none}
+#pw-box{
+  border:3px solid #2a2a6a;
+  background:#0f0f2a;
+  padding:36px 40px 32px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:18px;
+  box-shadow:0 0 0 2px #2a2a6a, 0 0 40px rgba(0,255,204,0.1), 6px 6px 0 #000;
+  position:relative;
+  max-width:340px;
+  width:90%;
+}
+#pw-box::before{
+  content:'';
+  position:absolute;
+  inset:2px;
+  border:1px solid #4a4aaa;
+  pointer-events:none;
+}
+#pw-logo{
+  font-family:'Press Start 2P',monospace;
+  font-size:13px;
+  color:#00ffcc;
+  text-shadow:0 0 16px #00ffcc, 2px 2px 0 #000;
+  letter-spacing:1px;
+  text-align:center;
+  line-height:1.8;
+}
+#pw-logo span{color:#ff6bff;text-shadow:0 0 16px #ff6bff,2px 2px 0 #000}
+#pw-subtitle{
+  font-family:'VT323',monospace;
+  font-size:17px;
+  color:#6677aa;
+  text-align:center;
+  line-height:1.5;
+}
+#pw-input{
+  width:100%;
+  background:#0d0d25;
+  border:2px solid #2a2a6a;
+  color:#ffffff;
+  font-family:'VT323',monospace;
+  font-size:22px;
+  padding:8px 14px;
+  outline:none;
+  text-align:center;
+  letter-spacing:4px;
+  transition:border-color 0.2s, box-shadow 0.2s;
+}
+#pw-input:focus{
+  border-color:#00ffcc;
+  box-shadow:0 0 12px rgba(0,255,204,0.25);
+}
+#pw-input::placeholder{
+  color:#2a2a6a;
+  letter-spacing:2px;
+  font-size:16px;
+}
+#pw-btn{
+  font-family:'Press Start 2P',monospace;
+  font-size:8px;
+  padding:10px 24px;
+  border:2px solid #00ffcc;
+  background:#00ffcc;
+  color:#000;
+  cursor:pointer;
+  box-shadow:4px 4px 0 #000;
+  transition:all 0.1s;
+  width:100%;
+}
+#pw-btn:hover{
+  box-shadow:0 0 16px #00ffcc, 4px 4px 0 #000;
+  transform:translateY(-1px);
+}
+#pw-btn:active{transform:translateY(0);box-shadow:2px 2px 0 #000}
+#pw-error{
+  font-family:'Press Start 2P',monospace;
+  font-size:7px;
+  color:#ff0066;
+  text-shadow:0 0 8px #ff0066;
+  text-align:center;
+  min-height:14px;
+  animation:pwShake 0.3s ease;
+}
+#pw-attempts{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  color:#2a2a6a;
+  text-align:center;
+}
+@keyframes pwShake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(4px)}
+}
+#pw-scanlines{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+  z-index:100000;
+}
+#pw-locked-msg{
+  font-family:'Press Start 2P',monospace;
+  font-size:8px;
+  color:#ff0066;
+  text-align:center;
+  line-height:2;
+  padding:10px 0 0;
+}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pw-scanlines"></div>
+<div id="pw-gate">
+  <div id="pw-box">
+    <div id="pw-logo">∂/∂x <span>RETROCALC</span><br>AI TUTOR EDITION</div>
+    <div id="pw-subtitle">🔒 RESTRICTED ACCESS<br>Enter password to continue</div>
+    <input id="pw-input" type="password" placeholder="••••••••••" onkeydown="if(event.key==='Enter')checkPassword()" autocomplete="off" spellcheck="false">
+    <button id="pw-btn" onclick="checkPassword()">▶ ENTER</button>
+    <div id="pw-error"></div>
+    <div id="pw-attempts"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="logo">∂/∂x <span>RETROCALC</span></div>
+  <div id="header-center">
+    <button class="mode-btn active" id="btn-learn" onclick="setMode('learn')">📖 LEARN</button>
+    <button class="mode-btn" id="btn-practice" onclick="setMode('practice')">⚔️ PRACTICE</button>
+    <button class="mode-btn" id="btn-exam" onclick="setMode('exam')">🎯 EXAM</button>
+    <div id="xp-bar"><div id="xp-fill"></div></div>
+    <div id="xp-label">LV.1 — 0 XP</div>
+  </div>
+  <div id="header-right">
+    <button id="rule-lib-btn" onclick="openRuleLib()">📚 RULES</button>
+    <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">☀</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="app">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <div class="panel-title"><span class="dot"></span> BUILD EQUATION</div>
+    <div id="toolbox">
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Calculus</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('d/dx(',')')" title="Derivative">d/dx</button>
+          <button class="tool-btn" onclick="insertSymbol('∫','dx')" title="Integral">∫</button>
+          <button class="tool-btn" onclick="insertSymbol('∫_','_dx')" title="Definite">∫ₐᵇ</button>
+          <button class="tool-btn" onclick="insertSymbol('lim(x→','')" title="Limit">lim</button>
+          <button class="tool-btn" onclick="insertSymbol("d²/dx²(",")")" title="2nd deriv">d²/dx²</button>
+          <button class="tool-btn" onclick="insertSymbol('dx','')" title="dx">dx</button>
+          <button class="tool-btn" onclick="insertSymbol('dy','')" title="dy">dy</button>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Basic Ops</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('+','')">+</button>
+          <button class="tool-btn" onclick="insertSymbol('-','')">−</button>
+          <button class="tool-btn" onclick="insertSymbol('*','')">×</button>
+          <button class="tool-btn" onclick="insertSymbol('/','')">÷</button>
+          <button class="tool-btn" onclick="insertSymbol('(',')')">( )</button>
+          <button class="tool-btn" onclick="insertSymbol('|','|')">|x|</button>
+          <button class="tool-btn" onclick="insertSymbol('^2','')">x²</button>
+          <button class="tool-btn" onclick="insertSymbol('^3','')">x³</button>
+          <button class="tool-btn" onclick="insertSymbol('^','')">xⁿ</button>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Variables</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('x','')">x</button>
+          <button class="tool-btn" onclick="insertSymbol('y','')">y</button>
+          <button class="tool-btn" onclick="insertSymbol('t','')">t</button>
+          <button class="tool-btn" onclick="insertSymbol('u','')">u</button>
+          <button class="tool-btn" onclick="insertSymbol('n','')">n</button>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Trig</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('sin(',')')">sin</button>
+          <button class="tool-btn" onclick="insertSymbol('cos(',')')">cos</button>
+          <button class="tool-btn" onclick="insertSymbol('tan(',')')">tan</button>
+          <button class="tool-btn" onclick="insertSymbol('csc(',')')">csc</button>
+          <button class="tool-btn" onclick="insertSymbol('sec(',')')">sec</button>
+          <button class="tool-btn" onclick="insertSymbol('cot(',')')">cot</button>
+          <button class="tool-btn" onclick="insertSymbol('arcsin(',')')">arcsin</button>
+          <button class="tool-btn" onclick="insertSymbol('arccos(',')')">arccos</button>
+          <button class="tool-btn" onclick="insertSymbol('arctan(',')')">arctan</button>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Log / Exp</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('ln(',')')">ln</button>
+          <button class="tool-btn" onclick="insertSymbol('log(',')')">log</button>
+          <button class="tool-btn" onclick="insertSymbol('e^','')">eˣ</button>
+          <button class="tool-btn" onclick="insertSymbol('sqrt(',')')">√</button>
+          <button class="tool-btn" onclick="insertSymbol('pi','')">π</button>
+          <button class="tool-btn" onclick="insertSymbol('e','')">e</button>
+          <button class="tool-btn" onclick="insertSymbol('∞','')">∞</button>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Numbers</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('0','')">0</button>
+          <button class="tool-btn" onclick="insertSymbol('1','')">1</button>
+          <button class="tool-btn" onclick="insertSymbol('2','')">2</button>
+          <button class="tool-btn" onclick="insertSymbol('3','')">3</button>
+          <button class="tool-btn" onclick="insertSymbol('4','')">4</button>
+          <button class="tool-btn" onclick="insertSymbol('5','')">5</button>
+          <button class="tool-btn" onclick="insertSymbol('6','')">6</button>
+          <button class="tool-btn" onclick="insertSymbol('7','')">7</button>
+          <button class="tool-btn" onclick="insertSymbol('8','')">8</button>
+          <button class="tool-btn" onclick="insertSymbol('9','')">9</button>
+        </div>
+      </div>
+
+      <div class="tool-category">
+        <div class="tool-cat-label">▸ Hyperbolic</div>
+        <div class="tool-grid">
+          <button class="tool-btn" onclick="insertSymbol('sinh(',')')">sinh</button>
+          <button class="tool-btn" onclick="insertSymbol('cosh(',')')">cosh</button>
+          <button class="tool-btn" onclick="insertSymbol('tanh(',')')">tanh</button>
+          <button class="tool-btn" onclick="insertSymbol('csch(',')')">csch</button>
+          <button class="tool-btn" onclick="insertSymbol('sech(',')')">sech</button>
+          <button class="tool-btn" onclick="insertSymbol('coth(',')')">coth</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div id="center-panel">
+    <div class="panel-title"><span class="dot"></span> EQUATION WORKSPACE</div>
+
+    <!-- operation tabs -->
+    <div id="op-tabs">
+      <button class="op-tab active" id="tab-diff" onclick="setOp('diff')">∂ DIFFERENTIATE</button>
+      <button class="op-tab" id="tab-indef" onclick="setOp('indef')">∫ INDEFINITE INT.</button>
+      <button class="op-tab" id="tab-def" onclick="setOp('def')">∫ₐᵇ DEFINITE INT.</button>
+    </div>
+
+    <!-- bounds row -->
+    <div id="bounds-row">
+      <span>Lower a =</span>
+      <input class="bounds-input" id="bound-a" value="0" type="text">
+      <span>Upper b =</span>
+      <input class="bounds-input" id="bound-b" value="1" type="text">
+    </div>
+
+    <!-- display -->
+    <div id="math-display" class="placeholder" onclick="focusInput()">
+      <span id="display-text">Enter an expression below...</span><span class="cursor-blink" id="cursor-blink" style="display:none"></span>
+    </div>
+
+    <!-- input row -->
+    <div id="input-row">
+      <input id="equation-input"
+        placeholder="Type: x^3 + sin(x), d/dx(x^2), etc..."
+        oninput="onInputChange()"
+        onkeydown="onInputKeydown(event)"
+        onfocus="showCursor(true)"
+        onblur="showCursor(false)"
+        autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <button class="action-btn primary" onclick="solve()">▶ SOLVE</button>
+      <button class="action-btn secondary" onclick="clearAll()">✕ CLR</button>
+    </div>
+
+    <!-- graph -->
+    <div id="graph-container">
+      <div id="graph-placeholder">
+        <div class="graph-placeholder-icon">📈</div>
+        <div>GRAPH WILL APPEAR HERE</div>
+        <div style="color:var(--text-dim);font-size:6px;margin-top:4px">after solving an expression</div>
+      </div>
+      <div id="graph-plot" style="display:none"></div>
+    </div>
+
+    <!-- examples -->
+    <div id="examples-row">
+      <span style="font-family:'Press Start 2P',monospace;font-size:6px;color:var(--text-dim);margin-right:4px">EX:</span>
+      <button class="ex-btn" onclick="loadExample('x^3 - 2*x','diff')">x³−2x</button>
+      <button class="ex-btn" onclick="loadExample('sin(x)*cos(x)','diff')">sin·cos</button>
+      <button class="ex-btn" onclick="loadExample('x^2*e^x','diff')">x²eˣ</button>
+      <button class="ex-btn" onclick="loadExample('ln(x^2+1)','diff')">ln(x²+1)</button>
+      <button class="ex-btn" onclick="loadExample('x^2','indef')">∫x²dx</button>
+      <button class="ex-btn" onclick="loadExample('x*sin(x)','indef')">∫x·sin(x)</button>
+      <button class="ex-btn" onclick="loadExample('sin(x)^2','indef')">∫sin²(x)</button>
+      <button class="ex-btn" onclick="loadExample('x^3-x','def','0','2')">∫₀²(x³−x)</button>
+      <button class="ex-btn" onclick="loadExample('e^x','def','-1','1')">∫₋₁¹eˣ</button>
+      <button class="ex-btn" onclick="loadExample('1/(1+x^2)','indef')">∫1/(1+x²)</button>
+      <button class="ex-btn" onclick="loadExample('sec(x)','diff')">sec(x)</button>
+      <button class="ex-btn" onclick="loadExample('cot(x)','diff')">cot(x)</button>
+      <button class="ex-btn" onclick="loadExample('sinh(x)','diff')">sinh(x)</button>
+      <button class="ex-btn" onclick="loadExample('1/x','indef')">∫1/x dx</button>
+      <button class="ex-btn" onclick="loadExample('x^2*cos(x)','indef')">∫x²cos(x)</button>
+      <button class="ex-btn" onclick="loadExample('e^(x^2)*2*x','indef')">∫2xe^(x²)</button>
+      <button class="ex-btn" onclick="loadExample('tan(x)^2','indef')">∫tan²(x)</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="panel-title"><span class="dot"></span> TUTOR SOLUTION ENGINE</div>
+
+    <div id="solution-container">
+      <div class="sol-idle">
+        <div class="idle-icon">🧙</div>
+        <div>AWAITING PROBLEM...</div>
+        <div style="color:var(--text-dim);margin-top:8px;font-size:6px">Enter an expression and press SOLVE</div>
+        <div style="color:var(--text-dim);margin-top:4px;font-size:6px">to begin step-by-step tutoring</div>
+      </div>
+    </div>
+
+    <!-- AI Tutor Chat -->
+    <div id="ai-chat-row">
+      <div style="font-family:'Press Start 2P',monospace;font-size:6px;color:var(--accent2);padding:5px 10px;border-bottom:1px solid var(--border)">
+        🤖 AI TUTOR CHAT
+      </div>
+      <div id="ai-messages">
+        <div class="ai-msg">
+          <div class="ai-label">PROF. CALC</div>
+          Greetings, student! I am Prof. Calc, your AI calculus tutor powered by Claude. Ask me anything — "Why use chain rule?", "Explain integration by parts", "What's a partial fraction?", or "Explain my current problem!"
+        </div>
+      </div>
+      <div id="ai-input-row">
+        <input id="ai-input" placeholder="Ask tutor anything..." onkeydown="aiInputKey(event)">
+        <button id="ai-send" onclick="sendAiMessage()">ASK ▶</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <div class="stat-item">MODE: <span class="stat-val" id="status-mode">LEARN</span></div>
+  <div class="stat-item">OP: <span class="stat-val" id="status-op">DIFF</span></div>
+  <div class="stat-item">SOLVED: <span class="stat-val" id="status-solved">0</span></div>
+  <div class="stat-item">STREAK: <span class="stat-val" id="status-streak">0</span></div>
+  <div class="stat-item">ACCURACY: <span class="stat-val" id="status-acc">-</span></div>
+  <div class="stat-item" style="margin-left:auto;color:var(--accent4)">
+    <span id="status-msg">READY</span>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- RULE LIBRARY OVERLAY -->
+<div id="rule-lib-overlay" onclick="closeRuleLib(event)">
+  <div id="rule-lib-modal">
+    <button class="modal-close" onclick="closeRuleLib(null,true)">✕ CLOSE</button>
+    <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--accent3);margin-bottom:12px;text-align:center">
+      📚 CALCULUS RULE LIBRARY
+    </div>
+    <div id="rule-lib-content"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let state = {
+  mode: 'learn',
+  op: 'diff',
+  expression: '',
+  solved: 0,
+  streak: 0,
+  correct: 0,
+  total: 0,
+  xp: 0,
+  level: 1,
+  history: [],
+  practiceStep: null,
+  examQuestions: [],
+  examIdx: 0,
+  examScore: 0,
+  examTimer: null,
+  examSeconds: 0,
+  lastAnswer: null,
+  hintLevel: 0
+};
+
+// Load from localStorage
+try {
+  const saved = JSON.parse(localStorage.getItem('retrocalc_state') || '{}');
+  if(saved.xp) state.xp = saved.xp;
+  if(saved.solved) state.solved = saved.solved;
+  if(saved.streak) state.streak = saved.streak;
+  if(saved.level) state.level = saved.level;
+  if(saved.correct) state.correct = saved.correct;
+  if(saved.total) state.total = saved.total;
+} catch(e){}
+
+function saveState(){
+  try{
+    localStorage.setItem('retrocalc_state', JSON.stringify({
+      xp: state.xp, solved: state.solved, streak: state.streak,
+      level: state.level, correct: state.correct, total: state.total
+    }));
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════
+function toggleTheme(){
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.querySelector('.icon-btn').textContent = html.dataset.theme === 'dark' ? '☀' : '🌙';
+  if(state.lastAnswer) drawGraph(state.lastAnswer.expr, state.lastAnswer.derivative, state.lastAnswer.op, state.lastAnswer.a, state.lastAnswer.b);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODE / OP
+// ═══════════════════════════════════════════════════════════
+function setMode(m){
+  state.mode = m;
+  ['learn','practice','exam'].forEach(x => document.getElementById('btn-'+x).classList.remove('active'));
+  document.getElementById('btn-'+m).classList.add('active');
+  document.getElementById('status-mode').textContent = m.toUpperCase();
+  if(m === 'exam') startExam();
+  else stopExam();
+  toast('MODE: '+m.toUpperCase());
+}
+
+function setOp(op){
+  state.op = op;
+  ['diff','indef','def'].forEach(x => document.getElementById('tab-'+x).classList.remove('active'));
+  document.getElementById('tab-'+op).classList.add('active');
+  document.getElementById('bounds-row').classList.toggle('visible', op === 'def');
+  document.getElementById('status-op').textContent = op.toUpperCase();
+}
+
+// ═══════════════════════════════════════════════════════════
+// INPUT HANDLING
+// ═══════════════════════════════════════════════════════════
+function focusInput(){document.getElementById('equation-input').focus()}
+function showCursor(v){document.getElementById('cursor-blink').style.display = v?'inline-block':'none'}
+
+function onInputChange(){
+  const v = document.getElementById('equation-input').value;
+  state.expression = v;
+  const disp = document.getElementById('display-text');
+  const md = document.getElementById('math-display');
+  if(v.trim()){
+    md.classList.remove('placeholder');
+    disp.textContent = renderMath(v, state.op);
+  } else {
+    md.classList.add('placeholder');
+    disp.textContent = 'Enter an expression below...';
+  }
+}
+
+function onInputKeydown(e){
+  if(e.key === 'Enter') solve();
+}
+
+function renderMath(expr, op){
+  let out = expr
+    .replace(/\*/g,'·')
+    .replace(/\bpi\b/g,'π')
+    .replace(/\binfinity\b/gi,'∞')
+    .replace(/sqrt\(([^)]+)\)/g,'√($1)')
+    .replace(/\^2/g,'²')
+    .replace(/\^3/g,'³')
+    .replace(/\^(-?\d+)/g,(m,n)=>`^${n}`)
+    .replace(/\be\b/g,'e');
+  if(op === 'diff') return 'd/dx[ ' + out + ' ]';
+  if(op === 'indef') return '∫ ' + out + ' dx';
+  if(op === 'def'){
+    const a = document.getElementById('bound-a').value || 'a';
+    const b = document.getElementById('bound-b').value || 'b';
+    return `∫_${a}^{${b}} ${out} dx`;
+  }
+  return out;
+}
+
+function insertSymbol(before, after){
+  const inp = document.getElementById('equation-input');
+  inp.focus();
+  const start = inp.selectionStart, end = inp.selectionEnd;
+  const val = inp.value;
+  const selected = val.slice(start, end);
+  const insertion = before + selected + after;
+  inp.value = val.slice(0,start) + insertion + val.slice(end);
+  const newPos = start + before.length + selected.length;
+  inp.setSelectionRange(newPos, newPos);
+  onInputChange();
+}
+
+function loadExample(expr, op, a, b){
+  setOp(op);
+  document.getElementById('equation-input').value = expr;
+  if(a) document.getElementById('bound-a').value = a;
+  if(b) document.getElementById('bound-b').value = b;
+  onInputChange();
+  solve();
+}
+
+function clearAll(){
+  document.getElementById('equation-input').value = '';
+  state.expression = '';
+  state.hintLevel = 0;
+  const md = document.getElementById('math-display');
+  md.classList.add('placeholder');
+  document.getElementById('display-text').textContent = 'Enter an expression below...';
+  document.getElementById('solution-container').innerHTML = `
+    <div class="sol-idle">
+      <div class="idle-icon">🧙</div>
+      <div>AWAITING PROBLEM...</div>
+      <div style="color:var(--text-dim);margin-top:8px;font-size:6px">Enter an expression and press SOLVE</div>
+    </div>`;
+  const gp = document.getElementById('graph-plot');
+  const ph = document.getElementById('graph-placeholder');
+  gp.style.display = 'none';
+  ph.style.display = '';
+  Plotly && Plotly.purge('graph-plot');
+  state.lastAnswer = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MATH ENGINE — Symbolic Calculus
+// ═══════════════════════════════════════════════════════════
+function prepExpr(expr){
+  return expr
+    .replace(/∞/g,'Infinity')
+    .replace(/π/g,'pi')
+    .replace(/×/g,'*')
+    .replace(/÷/g,'/')
+    .replace(/−/g,'-')
+    .replace(/·/g,'*')
+    .replace(/∫/g,'')
+    .replace(/d\/dx\(([^)]+)\)/,'$1')
+    .replace(/d\/dy\(([^)]+)\)/,'$1')
+    .replace(/d²\/dx²\(([^)]+)\)/,'$1')
+    // Normalize common notation variants
+    .replace(/sin²\(x\)/g,'sin(x)^2')
+    .replace(/cos²\(x\)/g,'cos(x)^2')
+    .replace(/tan²\(x\)/g,'tan(x)^2')
+    .replace(/x²/g,'x^2')
+    .replace(/x³/g,'x^3')
+    .replace(/(\d)([a-zA-Z(])/g,'$1*$2')
+    .replace(/\)\(/g,')*(')
+    .replace(/\)([a-zA-Z0-9])/g,')*$1')
+    .trim();
+}
+
+// Split f±g±h at top level (respects parentheses)
+function splitSum(expr){
+  const terms = [];
+  let depth = 0, buf = '';
+  const s = expr.replace(/\s+/g,'');
+  for(let i = 0; i < s.length; i++){
+    const c = s[i];
+    if(c === '(') depth++;
+    else if(c === ')') depth--;
+    else if(depth === 0 && (c === '+' || c === '-') && buf.length > 0){
+      terms.push(buf);
+      buf = c === '-' ? '-' : '';
+      continue;
+    }
+    buf += c;
+  }
+  if(buf.length) terms.push(buf);
+  return terms.length > 1 ? terms : null;
+}
+
+function normalizeBound(v){
+  v = String(v).trim().replace(/π/g,'pi');
+  if(/^pi$/i.test(v)) return 'pi';
+  if(/^e$/i.test(v)) return 'e';
+  return v;
+}
+
+// nerdamer uses log/atan; UI uses ln/arctan — convert between them
+function toNerdamer(expr){
+  return expr
+    .replace(/\bln\s*\(/gi,'log(')
+    .replace(/\barctan\b/gi,'atan')
+    .replace(/\barcsin\b/gi,'asin')
+    .replace(/\barccos\b/gi,'acos');
+}
+
+function fromNerdamer(expr){
+  return String(expr)
+    .replace(/\blog\s*\(/g,'ln(')
+    .replace(/\batan\b/g,'arctan')
+    .replace(/\basin\b/g,'arcsin')
+    .replace(/\bacos\b/g,'arccos');
+}
+
+// math.js: use exp() for e^x — Math.E^x is bitwise XOR, not a power!
+function toMathJs(expr){
+  let s = prepExpr(expr);
+  s = s.replace(/\bln\s*\(/gi,'log(');
+  // Must convert e^… → exp(…) BEFORE ^ → ** (otherwise e^(x^2) becomes e**(x**2))
+  s = s.replace(/\be\s*\^\s*\(/gi,'exp(');
+  s = s.replace(/\be\s*\^\s*([a-zA-Z_][a-zA-Z0-9_]*)/gi,'exp($1)');
+  s = s.replace(/\^/g,'**');
+  s = s.replace(/\barctan\b/gi,'atan');
+  s = s.replace(/\barcsin\b/gi,'asin');
+  s = s.replace(/\barccos\b/gi,'acos');
+  s = s.replace(/(\d)([a-zA-Z(])/g,'$1*$2');
+  s = s.replace(/\)\s*([a-zA-Z(0-9])/g,')*$1');
+  return s;
+}
+
+function addConstantC(result){
+  const s = String(result).trim();
+  if(/\bC\b/.test(s) || /\+\s*C$/i.test(s)) return s;
+  return s + ' + C';
+}
+
+function isValidIntegral(s, original){
+  if(!s) return false;
+  const t = s.trim();
+  if(!t || t === '0') return false;
+  if(/integrate\s*\(/i.test(t)) return false;
+  if(t.replace(/\s+/g,'') === String(original).replace(/\s+/g,'')) return false;
+  return true;
+}
+
+function tryNerdamerDiff(expr){
+  try{
+    const s = fromNerdamer(nerdamer.diff(toNerdamer(expr), 'x').toString());
+    return s && !/NaN|undefined/i.test(s) ? s : null;
+  }catch(e){ return null; }
+}
+
+function tryNerdamerIntegrate(expr){
+  try{
+    let r = nerdamer.integrate(toNerdamer(expr), 'x');
+    try{ r = r.expand(); }catch(e){}
+    const s = fromNerdamer(r.toString());
+    return isValidIntegral(s, expr) ? s : null;
+  }catch(e){ return null; }
+}
+
+function calcDiffSingle(expr){
+  const manual = manualDerivative(expr.replace(/\s+/g,''));
+  if(manual) return manual;
+  const na = tryNerdamerDiff(expr);
+  if(na) return na;
+  try{
+    return fromNerdamer(math.derivative(toMathJs(expr), 'x').toString());
+  }catch(e){ return null; }
+}
+
+function calcDiff(expr){
+  const sum = splitSum(expr);
+  if(sum){
+    const parts = sum.map(t => calcDiffSingle(t));
+    if(parts.every(p => p)){
+      return parts.map((p,i) => {
+        if(i === 0) return p;
+        return p.startsWith('-') ? p : '+' + p;
+      }).join('').replace(/^\+/,'');
+    }
+  }
+  return calcDiffSingle(expr);
+}
+
+// Manual antiderivative lookup for forms nerdamer struggles with
+const MANUAL_INTEGRALS = [
+  { pattern: /^x\^(-?\d+\.?\d*)$/,      fn: (m) => {
+      const n = parseFloat(m[1]);
+      if(n === -1) return 'ln(abs(x)) + C';
+      return 'x^'+(n+1)+'/'+(n+1)+' + C';
+  }},
+  { pattern: /^(\d+\.?\d*)\*x\^(-?\d+\.?\d*)$/, fn:(m)=>{
+      const c=parseFloat(m[1]),n=parseFloat(m[2]);
+      if(n===-1) return c+'*ln(abs(x)) + C';
+      return c+'*x^'+(n+1)+'/'+(n+1)+' + C';
+  }},
+  { pattern: /^x$/, fn:()=>'x^2/2 + C' },
+  { pattern: /^(\d+\.?\d*)$/, fn:(m)=>m[1]+'*x + C' },
+  { pattern: /^(\d+\.?\d*)\*x$/, fn:(m)=>m[1]+'*x^2/2 + C' },
+  { pattern: /^1\/x$/, fn:()=>'ln(abs(x)) + C' },
+  { pattern: /^(-?\d+\.?\d*)\/x$/, fn:(m)=>m[1]+'*ln(abs(x)) + C' },
+  { pattern: /^sin\(x\)$/, fn:()=>'-cos(x) + C' },
+  { pattern: /^cos\(x\)$/, fn:()=>'sin(x) + C' },
+  { pattern: /^tan\(x\)$/, fn:()=>'-ln(abs(cos(x))) + C' },
+  { pattern: /^csc\(x\)$/, fn:()=>'-ln(abs(csc(x)+cot(x))) + C' },
+  { pattern: /^sec\(x\)$/, fn:()=>'ln(abs(sec(x)+tan(x))) + C' },
+  { pattern: /^cot\(x\)$/, fn:()=>'ln(abs(sin(x))) + C' },
+  { pattern: /^sec\(x\)\^2$/, fn:()=>'tan(x) + C' },
+  { pattern: /^csc\(x\)\^2$/, fn:()=>'-cot(x) + C' },
+  { pattern: /^sec\(x\)\*tan\(x\)$/, fn:()=>'sec(x) + C' },
+  { pattern: /^csc\(x\)\*cot\(x\)$/, fn:()=>'-csc(x) + C' },
+  { pattern: /^sin\(x\)\^2$/, fn:()=>'x/2 - sin(2*x)/4 + C' },
+  { pattern: /^cos\(x\)\^2$/, fn:()=>'x/2 + sin(2*x)/4 + C' },
+  { pattern: /^sin\^2\(x\)$/, fn:()=>'x/2 - sin(2*x)/4 + C' },
+  { pattern: /^cos\^2\(x\)$/, fn:()=>'x/2 + sin(2*x)/4 + C' },
+  { pattern: /^tan\(x\)\^2$/, fn:()=>'tan(x) - x + C' },
+  { pattern: /^tan\^2\(x\)$/, fn:()=>'tan(x) - x + C' },
+  { pattern: /^e\^x$/, fn:()=>'e^x + C' },
+  { pattern: /^(\d+\.?\d*)\*e\^x$/, fn:(m)=>m[1]+'*e^x + C' },
+  { pattern: /^e\^\((-?\d+\.?\d*)\*x\)$/, fn:(m)=>'e^('+m[1]+'*x)/'+m[1]+' + C' },
+  { pattern: /^ln\(x\)$/, fn:()=>'x*ln(x) - x + C' },
+  { pattern: /^1\/\(1\+x\^2\)$/, fn:()=>'arctan(x) + C' },
+  { pattern: /^1\/\(x\^2\+1\)$/, fn:()=>'arctan(x) + C' },
+  { pattern: /^1\/sqrt\(1-x\^2\)$/, fn:()=>'arcsin(x) + C' },
+  { pattern: /^-1\/sqrt\(1-x\^2\)$/, fn:()=>'-arccos(x) + C' },
+  { pattern: /^sinh\(x\)$/, fn:()=>'cosh(x) + C' },
+  { pattern: /^cosh\(x\)$/, fn:()=>'sinh(x) + C' },
+  { pattern: /^tanh\(x\)$/, fn:()=>'ln(cosh(x)) + C' },
+  { pattern: /^sech\(x\)\^2$/, fn:()=>'tanh(x) + C' },
+  { pattern: /^sqrt\(x\)$/, fn:()=>'2*x^(3/2)/3 + C' },
+  { pattern: /^1\/sqrt\(x\)$/, fn:()=>'2*sqrt(x) + C' },
+  { pattern: /^x\*sin\(x\)$/, fn:()=>'sin(x)-x*cos(x) + C' },
+  { pattern: /^sin\(x\)\*x$/, fn:()=>'sin(x)-x*cos(x) + C' },
+  { pattern: /^x\*cos\(x\)$/, fn:()=>'x*sin(x)+cos(x) + C' },
+  { pattern: /^cos\(x\)\*x$/, fn:()=>'x*sin(x)+cos(x) + C' },
+  { pattern: /^x\*e\^x$/, fn:()=>'e^x*(x-1) + C' },
+  { pattern: /^e\^x\*x$/, fn:()=>'e^x*(x-1) + C' },
+  { pattern: /^2\*x\*e\^\(x\^2\)$/, fn:()=>'e^(x^2) + C' },
+  { pattern: /^e\^\(x\^2\)\*2\*x$/, fn:()=>'e^(x^2) + C' },
+  { pattern: /^x\^3-x$/, fn:()=>'x^4/4-x^2/2 + C' },
+  { pattern: /^x\^3-2\*x$/, fn:()=>'x^4/4-x^2 + C' },
+  // Trig products & double-angle
+  { pattern: /^sin\(x\)\*cos\(x\)$/, fn:()=>'sin(2*x)/4 + C' },
+  { pattern: /^cos\(x\)\*sin\(x\)$/, fn:()=>'sin(2*x)/4 + C' },
+  { pattern: /^sin\(2\*x\)$/, fn:()=>'-cos(2*x)/2 + C' },
+  { pattern: /^cos\(2\*x\)$/, fn:()=>'sin(2*x)/2 + C' },
+  // Integration by parts (LIATE)
+  { pattern: /^x\^2\*sin\(x\)$/, fn:()=>'-x^2*cos(x)+2*x*sin(x)+2*cos(x) + C' },
+  { pattern: /^sin\(x\)\*x\^2$/, fn:()=>'-x^2*cos(x)+2*x*sin(x)+2*cos(x) + C' },
+  { pattern: /^x\^2\*cos\(x\)$/, fn:()=>'x^2*sin(x)+2*x*cos(x)-2*sin(x) + C' },
+  { pattern: /^cos\(x\)\*x\^2$/, fn:()=>'x^2*sin(x)+2*x*cos(x)-2*sin(x) + C' },
+  { pattern: /^x\^2\*e\^x$/, fn:()=>'e^x*(x^2-2*x+2) + C' },
+  { pattern: /^e\^x\*x\^2$/, fn:()=>'e^x*(x^2-2*x+2) + C' },
+  { pattern: /^x\*ln\(x\)$/, fn:()=>'x^2/2*ln(x)-x^2/4 + C' },
+  { pattern: /^ln\(x\)\*x$/, fn:()=>'x^2/2*ln(x)-x^2/4 + C' },
+  // Inverse trig integrals
+  { pattern: /^1\/sqrt\(1-x\^2\)$/, fn:()=>'arcsin(x) + C' },
+  { pattern: /^-1\/sqrt\(1-x\^2\)$/, fn:()=>'-arccos(x) + C' },
+  { pattern: /^1\/\(x\^2-1\)$/, fn:()=>'1/2*ln(abs((x-1)/(x+1))) + C' },
+  { pattern: /^1\/\(1-x\^2\)$/, fn:()=>'1/2*ln(abs((1+x)/(1-x))) + C' },
+  // u-sub: k*x^(n-1) * f(x^n) and f(g(x))*g'(x)
+  { pattern: /^(\d+\.?\d*)\*x\^(\d+)\*e\^\(x\^(\d+)\)$/, fn:(m)=>{
+      if(parseInt(m[2])+1 === parseInt(m[3])) return 'e^(x^'+m[3]+')/'+m[1]+' + C';
+      return null;
+  }},
+  { pattern: /^e\^\(x\^(\d+)\)\*(\d+\.?\d*)\*x\^(\d+)$/, fn:(m)=>{
+      if(parseInt(m[3])+1 === parseInt(m[1])) return 'e^(x^'+m[1]+')/'+m[2]+' + C';
+      return null;
+  }},
+  { pattern: /^(\d+\.?\d*)\*x\^(\d+)\*sin\(x\^(\d+)\)$/, fn:(m)=>{
+      if(parseInt(m[2])+1 === parseInt(m[3])) return '-cos(x^'+m[3]+')/'+m[1]+' + C';
+      return null;
+  }},
+  { pattern: /^(\d+\.?\d*)\*x\^(\d+)\*cos\(x\^(\d+)\)$/, fn:(m)=>{
+      if(parseInt(m[2])+1 === parseInt(m[3])) return 'sin(x^'+m[3]+')/'+m[1]+' + C';
+      return null;
+  }},
+  // Hyperbolic integrals
+  { pattern: /^sinh\(x\)\^2$/, fn:()=>'x/2-sinh(2*x)/4 + C' },
+  { pattern: /^cosh\(x\)\^2$/, fn:()=>'x/2+sinh(2*x)/4 + C' },
+  { pattern: /^csch\(x\)$/, fn:()=>'ln(abs(tanh(x/2))) + C' },
+  { pattern: /^sech\(x\)$/, fn:()=>'arctan(sinh(x)) + C' },
+  { pattern: /^coth\(x\)$/, fn:()=>'ln(abs(sinh(x))) + C' },
+  { pattern: /^1\/\(x\^2\+(\d+\.?\d*)\)$/, fn:(m)=>{
+    const a2=parseFloat(m[1]), a=Math.sqrt(a2);
+    return `(1/${a})*arctan(x/${a}) + C`;
+  }},
+  { pattern: /^1\/sqrt\((\d+\.?\d*)-x\^2\)$/, fn:(m)=>{
+    const a=Math.sqrt(parseFloat(m[1]));
+    return `arcsin(x/${a}) + C`;
+  }},
+  { pattern: /^1\/\(x\^2-(\d+\.?\d*)\)$/, fn:(m)=>{
+    const a2=parseFloat(m[1]), a=Math.sqrt(a2);
+    return `(1/${2*a})*ln(abs((x-${a})/(x+${a}))) + C`;
+  }},
+  { pattern: /^cot\(x\)\^2$/, fn:()=>'-cot(x) - x + C' },
+  { pattern: /^cot\^2\(x\)$/, fn:()=>'-cot(x) - x + C' },
+  { pattern: /^sec\(x\)\^3$/, fn:()=>'sec(x)*tan(x)/2 + ln(abs(sec(x)+tan(x)))/2 + C' },
+  { pattern: /^arcsin\(x\)$/, fn:()=>'x*arcsin(x) + sqrt(1-x^2) + C' },
+  { pattern: /^arccos\(x\)$/, fn:()=>'x*arccos(x) - sqrt(1-x^2) + C' },
+  { pattern: /^arctan\(x\)$/, fn:()=>'x*arctan(x) - ln(1+x^2)/2 + C' },
+  { pattern: /^x\*arctan\(x\)$/, fn:()=>'x^2/2*arctan(x) - x/2 + arctan(x)/2 + C' },
+  { pattern: /^arctan\(x\)\*x$/, fn:()=>'x^2/2*arctan(x) - x/2 + arctan(x)/2 + C' },
+  { pattern: /^x\*arcsin\(x\)$/, fn:()=>'x^2/2*arcsin(x) + x*sqrt(1-x^2)/4 - arcsin(x)/4 + C' },
+  { pattern: /^sqrt\(1-x\^2\)$/, fn:()=>'x*sqrt(1-x^2)/2 + arcsin(x)/2 + C' },
+  { pattern: /^sqrt\(x\^2\+1\)$/, fn:()=>'x*sqrt(x^2+1)/2 + ln(x+sqrt(x^2+1))/2 + C' },
+  { pattern: /^sqrt\(x\^2-1\)$/, fn:()=>'x*sqrt(x^2-1)/2 - ln(abs(x+sqrt(x^2-1)))/2 + C' },
+  { pattern: /^1\/\(x\*sqrt\(x\^2-1\)\)$/, fn:()=>'arctan(sqrt(x^2-1)) + C' },
+  { pattern: /^(\d+\.?\d*)\^x$/, fn:(m)=>`${m[1]}^x/ln(${m[1]}) + C` },
+];
+
+// Derivative lookup (cheat-sheet fallback when nerdamer fails)
+const MANUAL_DERIVATIVES = [
+  { pattern: /^ln\((.+)\)$/, fn:(m)=>{
+      const inner = m[1], dIn = tryNerdamerDiff(inner);
+      return dIn ? `(${dIn})/(${inner})` : null;
+  }},
+  { pattern: /^log\((.+)\)$/, fn:(m)=>{
+      const inner = m[1], dIn = tryNerdamerDiff(inner);
+      return dIn ? `(${dIn})/(${inner})` : null;
+  }},
+  { pattern: /^arcsin\((.+)\)$/, fn:(m)=>{
+      const inner = m[1], dIn = tryNerdamerDiff(inner) || '1';
+      return inner === 'x' ? `1/sqrt(1-${inner}^2)` : `1/sqrt(1-(${inner})^2)*(${dIn})`;
+  }},
+  { pattern: /^arccos\((.+)\)$/, fn:(m)=>{
+      const inner = m[1], dIn = tryNerdamerDiff(inner) || '1';
+      return inner === 'x' ? `-1/sqrt(1-${inner}^2)` : `-1/sqrt(1-(${inner})^2)*(${dIn})`;
+  }},
+  { pattern: /^arctan\((.+)\)$/, fn:(m)=>{
+      const inner = m[1], dIn = tryNerdamerDiff(inner) || '1';
+      return inner === 'x' ? `1/(1+${inner}^2)` : `1/(1+(${inner})^2)*(${dIn})`;
+  }},
+  { pattern: /^sec\(x\)$/, fn:()=>'sec(x)*tan(x)' },
+  { pattern: /^csc\(x\)$/, fn:()=>'-csc(x)*cot(x)' },
+  { pattern: /^cot\(x\)$/, fn:()=>'-csc(x)^2' },
+  { pattern: /^sinh\(x\)$/, fn:()=>'cosh(x)' },
+  { pattern: /^cosh\(x\)$/, fn:()=>'sinh(x)' },
+  { pattern: /^tanh\(x\)$/, fn:()=>'sech(x)^2' },
+  { pattern: /^sech\(x\)$/, fn:()=>'-sech(x)*tanh(x)' },
+  { pattern: /^csch\(x\)$/, fn:()=>'-csch(x)*coth(x)' },
+  { pattern: /^coth\(x\)$/, fn:()=>'-csch(x)^2' },
+  { pattern: /^e\^\((.+)\)$/, fn:(m)=>{
+      const inner = m[1], dIn = tryNerdamerDiff(inner);
+      return dIn ? `e^(${inner})*(${dIn})` : null;
+  }},
+  { pattern: /^arcsec\((.+)\)$/, fn:(m)=>{
+    const inner=m[1], dIn=tryNerdamerDiff(inner)||'1';
+    return inner==='x'
+      ? `1/(abs(x)*sqrt(x^2-1))`
+      : `(${dIn})/(abs(${inner})*sqrt((${inner})^2-1))`;
+  }},
+  { pattern: /^arccsc\((.+)\)$/, fn:(m)=>{
+    const inner=m[1], dIn=tryNerdamerDiff(inner)||'1';
+    return inner==='x'
+      ? `-1/(abs(x)*sqrt(x^2-1))`
+      : `-(${dIn})/(abs(${inner})*sqrt((${inner})^2-1))`;
+  }},
+  { pattern: /^sinh\((.+)\)$/, fn:(m)=>{
+    const inner=m[1], dIn=tryNerdamerDiff(inner)||'1';
+    return `cosh(${inner})*(${dIn})`;
+  }},
+  { pattern: /^cosh\((.+)\)$/, fn:(m)=>{
+    const inner=m[1], dIn=tryNerdamerDiff(inner)||'1';
+    return `sinh(${inner})*(${dIn})`;
+  }},
+  { pattern: /^tanh\((.+)\)$/, fn:(m)=>{
+    const inner=m[1], dIn=tryNerdamerDiff(inner)||'1';
+    return `sech(${inner})^2*(${dIn})`;
+  }},
+];
+
+function manualDerivative(expr){
+  for(const entry of MANUAL_DERIVATIVES){
+    const m = expr.match(entry.pattern);
+    if(m){
+      const r = entry.fn(m);
+      if(r && !r.includes('d(')) return r;
+    }
+  }
+  return null;
+}
+
+function manualIntegral(expr){
+  const e = expr.trim().replace(/\s+/g,'');
+  for(const entry of MANUAL_INTEGRALS){
+    const m = e.match(entry.pattern);
+    if(m){
+      const r = entry.fn(m);
+      if(r) return r;
+    }
+  }
+  return null;
+}
+
+function calcIntegralSingle(expr){
+  const norm = expr.trim().replace(/\s+/g,'');
+
+  const manual = manualIntegral(norm);
+  if(manual) return manual;
+
+  const nerd = tryNerdamerIntegrate(expr);
+  if(nerd) return addConstantC(nerd);
+
+  const alt = expr
+    .replace(/sin\(x\)\^2/gi,'sin^2(x)')
+    .replace(/cos\(x\)\^2/gi,'cos^2(x)')
+    .replace(/tan\(x\)\^2/gi,'tan^2(x)');
+  if(alt !== expr){
+    const manual2 = manualIntegral(alt.replace(/\s+/g,''));
+    if(manual2) return manual2;
+    const nerd2 = tryNerdamerIntegrate(alt);
+    if(nerd2) return addConstantC(nerd2);
+  }
+
+  return null;
+}
+
+function calcIntegral(expr){
+  const sum = splitSum(expr);
+  if(sum){
+    const parts = sum.map(t => calcIntegralSingle(t));
+    if(parts.every(p => p)){
+      const body = parts.map(p => p.replace(/\s*\+\s*C\s*$/i,'').trim()).join(' + ');
+      return addConstantC(body);
+    }
+  }
+  return calcIntegralSingle(expr);
+}
+
+function evalBoundVal(v){
+  const n = normalizeBound(v);
+  if(n === 'pi') return Math.PI;
+  if(n === 'e') return Math.E;
+  const p = parseFloat(n);
+  return isFinite(p) ? p : null;
+}
+
+function simpsonDefinite(expr, a, b){
+  const fa = evalBoundVal(a), fb = evalBoundVal(b);
+  if(fa === null || fb === null) return null;
+  const f = math.compile(toMathJs(expr));
+  const n = 1000;
+  const h = (fb-fa)/n;
+  let sum = 0;
+  for(let i=0;i<=n;i++){
+    const x = fa + i*h;
+    const fx = f.evaluate({x, pi:Math.PI, e:Math.E});
+    if(!isFinite(fx)) return null;
+    sum += (i===0||i===n) ? fx : (i%2===0?2:4)*fx;
+  }
+  return (sum * h / 3).toFixed(6);
+}
+
+function ftcDefinite(expr, a, b){
+  const F = calcIntegral(expr);
+  if(!F) return null;
+  const Fbare = F.replace(/\s*\+\s*C\s*$/i,'').trim();
+  const fa = evalBoundVal(a), fb = evalBoundVal(b);
+  if(fa === null || fb === null) return null;
+
+  try{
+    const Fna = toNerdamer(Fbare);
+    const Fb = parseFloat(nerdamer(Fna).evaluate({x:fb}).text());
+    const Fa = parseFloat(nerdamer(Fna).evaluate({x:fa}).text());
+    if(isFinite(Fb) && isFinite(Fa)){
+      return {symbolic: 'F('+b+') - F('+a+')', numeric: (Fb-Fa).toFixed(6)};
+    }
+  }catch(e){}
+
+  try{
+    const Fc = math.compile(toMathJs(Fbare));
+    const Fb = Fc.evaluate({x:fb, pi:Math.PI, e:Math.E});
+    const Fa = Fc.evaluate({x:fa, pi:Math.PI, e:Math.E});
+    if(isFinite(Fb) && isFinite(Fa)){
+      return {symbolic: null, numeric: (Fb-Fa).toFixed(6)};
+    }
+  }catch(e){}
+
+  return null;
+}
+
+function calcDefinite(expr, a, b){
+  const ba = normalizeBound(a), bb = normalizeBound(b);
+  const na = toNerdamer(expr);
+  try{
+    const r = nerdamer.defint(na, ba, bb, 'x');
+    const val = parseFloat(r.evaluate().text());
+    if(isFinite(val)){
+      return {symbolic: fromNerdamer(r.toString()), numeric: val.toFixed(6)};
+    }
+  }catch(e){}
+
+  const ftc = ftcDefinite(expr, ba, bb);
+  if(ftc) return ftc;
+
+  const num = simpsonDefinite(expr, ba, bb);
+  if(num) return {symbolic: null, numeric: num};
+
+  return null;
+}
+
+function simplify(expr){
+  try{return fromNerdamer(nerdamer(toNerdamer(expr)).text());}catch(e){return expr}
+}
+
+// ═══════════════════════════════════════════════════════════
+// PATTERN DETECTION — Determine which rules apply
+// ═══════════════════════════════════════════════════════════
+function detectRules(expr, op){
+  const e = expr.toLowerCase();
+  const rules = [];
+
+  if(op === 'diff'){
+    // Second derivative (already differentiated once upstream — detect explicit d²/dx² notation)
+    if(e.includes('d²') || e.includes("d^2")){rules.push('second-deriv')}
+    // Implicit
+    if(e.includes('y') && !e.startsWith('y=')){rules.push('implicit')}
+    // Hyperbolic
+    if(e.match(/\bsinh\b|\bcosh\b|\btanh\b|\bcsch\b|\bsech\b|\bcoth\b/)){rules.push('hyperbolic')}
+    // Reciprocal trig (csc, sec, cot)
+    if(e.match(/\bcsc\b|\bsec\b|\bcot\b/)){rules.push('trig-recip')}
+    // Product rule — look for * between non-trivial parts
+    if(e.includes('*') && !e.includes('/')){
+      const hasTwoNonConstantFactors =
+        (e.match(/x\^\d+\s*\*/) || e.match(/\*\s*x\^\d+/) ||
+         e.match(/x\s*\*\s*(sin|cos|tan|csc|sec|cot|e\^|ln|sqrt|sinh|cosh)/) ||
+         e.match(/(sin|cos|tan|e\^|ln|sqrt)\(.*\)\s*\*/) ||
+         (e.match(/\*/) && !e.match(/^\d+\s*\*\s*x/) && e.match(/[a-z]\s*\*\s*[a-z]/)));
+      if(hasTwoNonConstantFactors) rules.push('product');
+    }
+    // Quotient rule
+    if(e.includes('/')){
+      const parts = e.split('/');
+      if(parts[1] && (parts[1].includes('x') || parts[1].includes('sin') || parts[1].includes('cos'))){
+        rules.push('quotient');
+      }
+    }
+    // Chain rule — composite function
+    if((e.match(/sin|cos|tan|csc|sec|cot|sinh|cosh|tanh|ln|log|sqrt|e\^/) &&
+       (e.match(/x\^[2-9]/) || e.match(/\([^)]*[+\-*][^)]*\)/) || e.match(/\d+x/) || e.match(/x\+|x\-/))) ||
+       e.match(/(sin|cos|tan|ln|sqrt)\([^x]*x[^)]*\^/)){
+      rules.push('chain');
+    }
+    // Power rule
+    if(e.match(/x\^-?\d+/) || e.match(/x\^[a-z]/)){rules.push('power')}
+    // Special: 1/x → log rule
+    if(e.match(/^1\s*\/\s*x$/) || e.match(/^-?\d+\s*\/\s*x$/)){rules.push('log')}
+    // Log base change
+    if(e.match(/log_|log\d+/)){rules.push('log-base')}
+    // Trig (plain)
+    if(e.match(/\bsin\b|\bcos\b|\btan\b/) && !rules.includes('trig-recip')){rules.push('trig')}
+    // Exp/log
+    if(e.match(/e\^|exp\(/)){rules.push('exp')}
+    if(e.match(/\bln\b|\blog\b/) && !rules.includes('log-base')){rules.push('log')}
+    // Abs value
+    if(e.includes('abs(') || e.includes('|')){rules.push('abs-val')}
+    // Basic fallback
+    if(!rules.length){rules.push('basic')}
+
+  } else {
+    // Integration
+    // 1/x → log-int-recip
+    if(e.match(/^1\s*\/\s*x$/) || e.match(/^-?\d*\s*\/\s*x$/) || e.match(/x\^-1/)){rules.push('log-int-recip')}
+    // Integration by parts: product with transcendental
+    if(e.match(/x\s*\*\s*(sin|cos|ln|log|e\^|arcsin|arccos|arctan)/) ||
+       e.match(/(sin|cos|ln|e\^)\s*\*\s*x/) ||
+       e.match(/x\^\d+\s*\*\s*(sin|cos|ln|e\^)/) ||
+       e.match(/ln\(|log\(/) ){
+      rules.push('parts');
+    }
+    // Partial fractions: rational function (polynomial / polynomial with factors)
+    if(e.match(/\d+\s*\/\s*\(.*x.*\(.*x/) || e.match(/1\s*\/\s*\(x[^)]*\)\s*\(x/) ||
+       e.match(/\(x[^)]*\)\s*\*\s*\(x/) || e.match(/x\^2[^+]*[+\-]\d+.*\//)){
+      rules.push('partial-frac');
+    }
+    // Trig integrals
+    if(e.match(/sin\^2|cos\^2|sin\(.*\).*\*.*cos\(|tan\^2|sec\^2/)){rules.push('trig-int')}
+    // Inverse trig
+    if(e.match(/1\s*\/\s*\(?1\s*\+\s*x\^2\)?/) || e.match(/1\s*\/\s*sqrt\(1\s*-\s*x\^2\)/) ||
+       e.match(/1\s*\/\s*\(a\^2\s*\+\s*x\^2\)/)){rules.push('arctrig')}
+    // Exponential
+    if(e.match(/e\^|exp\(/)){rules.push('exp-int')}
+    // Hyperbolic
+    if(e.match(/\bsinh\b|\bcosh\b|\btanh\b/)){rules.push('hyperbolic')}
+    // Log integrand
+    if(e.match(/\bln\b|\blog\b/) && !rules.includes('parts')){rules.push('log-int')}
+    // U-substitution: composite function
+    if(!rules.includes('parts') && !rules.includes('log-int-recip') &&
+       (e.match(/\(.*x.*\)\^[2-9]/) || e.match(/(sin|cos|tan|e\^|sqrt)\([^x]*x[^)]+\)/) ||
+        e.match(/e\^\([^)]+\)/) || e.match(/\d+x\)\^/) || e.match(/x\^2\s*[+\-]/))){
+      rules.push('usub');
+    }
+    // Abs val
+    if(e.includes('abs(') || e.includes('|')){rules.push('abs-val')}
+    // Trig substitution — radical forms
+    if(e.match(/sqrt\s*\(\s*1\s*[-−]\s*x\^2/) || e.match(/sqrt\s*\(\s*a\^2\s*[-−]\s*x\^2/)){
+      rules.push('trig-sub');
+    }
+    if(e.match(/sqrt\s*\(\s*x\^2\s*[+]\s*/) || e.match(/sqrt\s*\(\s*a\^2\s*[+]\s*x\^2/)){
+      rules.push('trig-sub');
+    }
+    if(e.match(/sqrt\s*\(\s*x\^2\s*[-−]\s*/)){
+      rules.push('trig-sub');
+    }
+    // Quadratic trinomial (complete the square needed)
+    if(e.match(/1\s*\/\s*\(\s*x\^2\s*[+\-]\s*\d+\s*\*\s*x/) ||
+      e.match(/1\s*\/\s*\(\s*\d*\s*x\^2\s*[+\-]\s*\d+\s*x\s*[+\-]\s*\d+/)){
+      rules.push('quad-complete');
+    }
+    // Rational trig functions
+    if(e.match(/1\s*\/\s*\(?\d*\s*[+\-]\s*\d*\s*(sin|cos)\(x\)/) ||
+      e.match(/(sin|cos)\s*\(x\)\s*\/\s*\(?\d*\s*[+\-]\s*\d*\s*(sin|cos)/)){
+      rules.push('weierstrass');
+    }
+    // Power rule for integration
+    if(e.match(/x\^-?\d+/) && !rules.length){rules.push('power-int')}
+    // Basic fallback
+    if(!rules.length){rules.push('basic-int')}
+  }
+  return [...new Set(rules)];
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP GENERATOR — Educational breakdown
+// ═══════════════════════════════════════════════════════════
+const RULE_INFO = {
+  power: {
+    name:'Power Rule',
+    formula:'d/dx[xⁿ] = n·xⁿ⁻¹',
+    why:"The Power Rule is the most fundamental differentiation rule. It applies whenever you're differentiating a variable raised to a constant power.",
+    example:'d/dx[x⁵] = 5x⁴',
+    mistakes:'Forgetting to subtract 1 from the exponent, or applying it when the exponent is NOT constant.'
+  },
+  chain: {
+    name:'Chain Rule',
+    formula:'d/dx[f(g(x))] = f\'(g(x)) · g\'(x)',
+    why:"Use Chain Rule when you have a composite function — one function nested inside another. Think of it as: derivative of outside × derivative of inside.",
+    example:'d/dx[sin(x²)] = cos(x²) · 2x',
+    mistakes:'Forgetting to multiply by the derivative of the inner function (the "chain" part).'
+  },
+  product: {
+    name:'Product Rule',
+    formula:'d/dx[u·v] = u\'v + uv\'',
+    why:"Product Rule applies when differentiating the product of two separate functions. You CANNOT distribute the derivative across multiplication.",
+    example:'d/dx[x²·sin(x)] = 2x·sin(x) + x²·cos(x)',
+    mistakes:'Multiplying derivatives directly: d/dx[u·v] ≠ u\'·v\'. That is WRONG!'
+  },
+  quotient: {
+    name:'Quotient Rule',
+    formula:'d/dx[u/v] = (u\'v − uv\') / v²',
+    why:"Apply Quotient Rule when differentiating a fraction where both numerator and denominator depend on x. Memory trick: 'Low d-High minus High d-Low, over Low-squared go'.",
+    example:'d/dx[sin(x)/x] = (cos(x)·x − sin(x)·1)/x²',
+    mistakes:'Forgetting the minus sign in the numerator, or forgetting to square the denominator.'
+  },
+  trig: {
+    name:'Trigonometric Derivatives',
+    formula:'d/dx[sin(x)]=cos(x), d/dx[cos(x)]=-sin(x), d/dx[tan(x)]=sec²(x)',
+    why:"These are memorized standard results derived from the limit definition of the derivative and trig identities.",
+    example:'d/dx[tan(x)] = sec²(x)',
+    mistakes:'Mixing up signs: d/dx[cos(x)] = -sin(x), NOT +sin(x).'
+  },
+  exp: {
+    name:'Exponential Rule',
+    formula:'d/dx[eˣ] = eˣ, d/dx[aˣ] = aˣ·ln(a)',
+    why:"The exponential function eˣ is unique: its derivative equals itself! For any base a, multiply by ln(a).",
+    example:'d/dx[e^(x²)] = e^(x²)·2x (chain rule also needed)',
+    mistakes:'Forgetting the chain rule when the exponent is a function of x, not just x.'
+  },
+  log: {
+    name:'Logarithmic Derivative',
+    formula:'d/dx[ln(x)] = 1/x, d/dx[log_a(x)] = 1/(x·ln(a))',
+    why:"Derived from the inverse relationship between eˣ and ln(x). Essential for logarithmic differentiation of complex products.",
+    example:'d/dx[ln(x²+1)] = 2x/(x²+1) by chain rule',
+    mistakes:'Forgetting chain rule: d/dx[ln(f(x))] = f\'(x)/f(x)'
+  },
+  basic: {
+    name:'Sum/Difference & Constant Rules',
+    formula:'d/dx[f+g] = f\'+g\', d/dx[c] = 0, d/dx[c·f] = c·f\'',
+    why:"These fundamental rules let you differentiate term by term and factor out constants.",
+    example:'d/dx[5x³+3x] = 15x²+3',
+    mistakes:'Thinking d/dx[constant] is 1, not 0.'
+  },
+  implicit: {
+    name:'Implicit Differentiation',
+    formula:'Differentiate both sides; every d/dx[y] becomes dy/dx',
+    why:"Used when y is not isolated. Treat y as a function of x and apply chain rule to every y-term.",
+    example:'For x²+y²=1: 2x+2y·dy/dx=0, so dy/dx=-x/y',
+    mistakes:'Forgetting that d/dx[y²] = 2y·(dy/dx) — the chain rule applies!'
+  },
+  parts: {
+    name:'Integration by Parts',
+    formula:'∫u dv = uv − ∫v du',
+    why:"Use when the integrand is a product of two different types of functions. Strategy LIATE: Log > Inv-Trig > Algebraic > Trig > Exp — choose u from left.",
+    example:'∫x·eˣ dx: u=x, dv=eˣdx → xeˣ−eˣ+C',
+    mistakes:'Choosing u and dv in wrong order, making the remaining integral harder.'
+  },
+  'trig-int': {
+    name:'Trigonometric Integrals',
+    formula:'∫sin²(x)dx = x/2 − sin(2x)/4 + C',
+    why:"Use trig identities to simplify powers of sin/cos before integrating. sin²(x)=(1-cos2x)/2, cos²(x)=(1+cos2x)/2.",
+    example:'∫sin²(x)dx = ∫(1-cos2x)/2 dx = x/2 − sin(2x)/4 + C',
+    mistakes:'Trying to integrate sin²(x) directly without using the half-angle identity first.'
+  },
+  usub: {
+    name:'U-Substitution',
+    formula:'∫f(g(x))g\'(x)dx = ∫f(u)du, where u=g(x)',
+    why:"The reverse of the chain rule. Use when you spot a function and its derivative inside the integrand.",
+    example:'∫2x·e^(x²)dx: u=x², du=2x dx → ∫eᵘdu = eᵘ+C = e^(x²)+C',
+    mistakes:'Forgetting to replace dx with du/g\'(x), leaving mixed variables.'
+  },
+  'power-int': {
+    name:'Power Rule for Integration',
+    formula:'∫xⁿ dx = xⁿ⁺¹/(n+1) + C, (n≠-1)',
+    why:"The reverse of the power rule for differentiation. Add 1 to the exponent, divide by the new exponent.",
+    example:'∫x³ dx = x⁴/4 + C',
+    mistakes:'Applying it when n=-1 (∫1/x dx = ln|x|+C, not x⁰/0!).'
+  },
+  'exp-int': {
+    name:'Exponential Integration',
+    formula:'∫eˣ dx = eˣ + C, ∫aˣ dx = aˣ/ln(a) + C',
+    why:"eˣ is its own antiderivative — one of the most beautiful facts in calculus!",
+    example:'∫3eˣ dx = 3eˣ + C',
+    mistakes:'Forgetting to apply u-sub when the exponent is a function: ∫e^(2x)dx = e^(2x)/2 + C'
+  },
+  'log-int': {
+    name:'Logarithmic Integration',
+    formula:'∫(1/x)dx = ln|x| + C',
+    why:"This is the special case that fills the gap in the power rule (n=-1). Note the absolute value!",
+    example:'∫(3/x)dx = 3ln|x| + C',
+    mistakes:'Forgetting the absolute value: it should be ln|x|, not ln(x).'
+  },
+  'arctrig': {
+    name:'Inverse Trig Integrals',
+    formula:'∫1/(1+x²)dx = arctan(x)+C, ∫1/√(1−x²)dx = arcsin(x)+C',
+    why:"These special forms arise frequently in physics and engineering. Recognize the pattern!",
+    example:'∫1/(1+x²)dx = arctan(x)+C',
+    mistakes:'Missing these patterns and attempting u-substitution which will fail.'
+  },
+  'basic-int': {
+    name:'Basic Integration Rules',
+    formula:'∫c·f(x)dx = c·∫f(x)dx, ∫(f+g)dx = ∫f dx + ∫g dx',
+    why:"Just like differentiation, integration is linear — you can factor out constants and integrate term by term.",
+    example:'∫(3x²+2x+5)dx = x³+x²+5x+C',
+    mistakes:'Forgetting the constant of integration C in indefinite integrals!'
+  },
+  'trig-recip': {
+    name:'Reciprocal Trig Derivatives',
+    formula:'d/dx[csc(x)]=−csc(x)cot(x), d/dx[sec(x)]=sec(x)tan(x), d/dx[cot(x)]=−csc²(x)',
+    why:"These are derived from sin, cos, tan using the quotient rule. Note the negative signs on csc and cot!",
+    example:'d/dx[sec(x)] = sec(x)·tan(x)',
+    mistakes:'Forgetting the negative signs for d/dx[csc] and d/dx[cot], or confusing with their trig-int counterparts.'
+  },
+  'hyperbolic': {
+    name:'Hyperbolic Functions',
+    formula:'d/dx[sinh(x)]=cosh(x), d/dx[cosh(x)]=sinh(x), d/dx[tanh(x)]=sech²(x)',
+    why:"Hyperbolic functions are analogs of trig functions defined with e. Their derivatives mirror trig derivatives — but cosh is POSITIVE (unlike d/dx[cos]=−sin).",
+    example:'d/dx[sinh(2x)] = 2·cosh(2x) by chain rule',
+    mistakes:'Confusing with circular trig: d/dx[cosh(x)] = +sinh(x), not −sinh(x)!'
+  },
+  'log-base': {
+    name:'Logarithm Base Change',
+    formula:'d/dx[logₐ(x)] = 1/(x·ln(a))',
+    why:"Any log base can be converted: log_a(x) = ln(x)/ln(a). The ln(a) is just a constant multiplier.",
+    example:'d/dx[log₂(x)] = 1/(x·ln(2))',
+    mistakes:'Using 1/x without the ln(a) denominator for non-natural logs.'
+  },
+  'second-deriv': {
+    name:'Second Derivative',
+    formula:"f''(x) = d/dx[f'(x)] — differentiate twice",
+    why:"The second derivative measures the rate of change of the slope — it tells you about concavity. f''(x)>0 means concave up (∪), f''(x)<0 means concave down (∩).",
+    example:"f(x)=x³ → f'(x)=3x² → f''(x)=6x",
+    mistakes:"Forgetting to differentiate AGAIN after the first pass, or confusing f'(x) with f''(x) in application problems."
+  },
+  'log-int-recip': {
+    name:'Reciprocal Rule (∫1/x)',
+    formula:'∫(1/x)dx = ln|x| + C  (special case n=−1)',
+    why:"The power rule ∫xⁿdx breaks down when n=−1 (division by zero). This is the exception: the answer is ln|x|, not x⁰/0.",
+    example:'∫(5/x)dx = 5·ln|x| + C',
+    mistakes:'Applying power rule to 1/x. NEVER do x⁰/0! The answer is ln|x|+C.'
+  },
+  'partial-frac': {
+    name:'Partial Fractions',
+    formula:'∫P(x)/Q(x)dx → decompose Q(x) into linear/quadratic factors first',
+    why:"Break a rational function into simpler fractions that are easy to integrate separately. Each piece becomes a log or arctangent integral.",
+    example:'∫1/((x+1)(x-1))dx = ½ln|x−1| − ½ln|x+1| + C',
+    mistakes:'Forgetting to factor the denominator fully, or not accounting for repeated factors.'
+  },
+  'hyp-int': {
+    name:'Hyperbolic Integration',
+    formula:'∫sinh(x)dx=cosh(x)+C, ∫cosh(x)dx=sinh(x)+C, ∫sech²(x)dx=tanh(x)+C',
+    why:"Mirror of trig integration but with sign differences. cosh antiderivative is sinh (both positive), unlike cos→sin which is also positive but remember sinh≠sin.",
+    example:'∫cosh(2x)dx = sinh(2x)/2 + C (with u-sub)',
+    mistakes:'Confusing sign with trig counterparts. Also: ∫sech(x)dx = arctan(sinh(x))+C, NOT ln(tanh(x)).'
+  },
+  'trig-sub': {
+    name:'Trigonometric Substitution',
+    formula:'√(a²−x²): x=a·sinθ | √(a²+x²): x=a·tanθ | √(x²−a²): x=a·secθ',
+    why:"Use when the integrand contains a radical of the form √(a²±x²) or √(x²−a²). The substitution eliminates the radical using Pythagorean identities.",
+    example:'∫√(1−x²)dx: let x=sinθ → ∫cos²θ dθ = θ/2+sin(2θ)/4+C',
+    mistakes:'Forgetting to back-substitute from θ to x using a right triangle. Also forgetting to change dx to the correct trig differential.'
+  },
+  'weierstrass': {
+    name:'Weierstrass (Half-Angle) Substitution',
+    formula:'t=tan(x/2): sinx=2t/(1+t²), cosx=(1−t²)/(1+t²), dx=2dt/(1+t²)',
+    why:"Universal substitution that converts any rational function of sin x and cos x into a rational function of t, which can then be integrated via partial fractions.",
+    example:'∫1/(1+cosx)dx: t=tan(x/2) → ∫1/(1+(1−t²)/(1+t²))·2dt/(1+t²) = ∫dt = t+C = tan(x/2)+C',
+    mistakes:'Forgetting to substitute dx as well as sin x and cos x. Very messy algebra — always expand carefully.'
+  },
+  'quad-complete': {
+    name:'Quadratic Completion (Type I & II)',
+    formula:'ax²+bx+c = a(x+b/2a)²+(c−b²/4a)',
+    why:"Completing the square on quadratics in denominators converts them into standard arctan or ln forms. Type I: irreducible quadratic → arctan. Type II: with √ → arcsin or ln.",
+    example:'∫dx/(x²+2x+5): complete square → ∫dx/((x+1)²+4) = (1/2)arctan((x+1)/2)+C',
+    mistakes:'Not completing the square first. Trying u-sub without reducing to standard form (u²+a²) or (a²−u²).'
+  },
+  'abs-val': {
+    name:'Absolute Value & Piecewise',
+    formula:'|f(x)| = f(x) if f(x)≥0, else −f(x)',
+    why:"To differentiate or integrate absolute values, split into cases based on where the expression inside is positive or negative.",
+    example:"d/dx[|x|] = x/|x| = sign(x) (for x≠0)",
+    mistakes:'Treating |f(x)| as if it were smooth everywhere — it has a corner/cusp where f(x)=0!'
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// SOLVE — MAIN ENGINE
+// ═══════════════════════════════════════════════════════════
+function solve(){
+  const raw = document.getElementById('equation-input').value.trim();
+  if(!raw){ toast('⚠ Enter an expression first!'); return; }
+
+  const expr = prepExpr(raw);
+  if(!expr){ toast('⚠ Invalid expression'); return; }
+
+  setStatus('COMPUTING...');
+  document.getElementById('solution-container').innerHTML = `
+    <div class="sol-idle">
+      <div class="idle-icon">⚙️</div>
+      <div class="loading-dots">ANALYZING PROBLEM</div>
+    </div>`;
+
+  // Small delay for UX
+  setTimeout(()=>{
+    try{
+      const op = state.op;
+      if(op === 'diff') solveDiff(expr, raw);
+      else if(op === 'indef') solveIndef(expr, raw);
+      else solveDefInt(expr, raw);
+    }catch(e){
+      showError('Could not solve: '+e.message+'. Try simplifying your expression.');
+    }
+  }, 120);
+}
+
+function solveDiff(expr, raw){
+  const result = calcDiff(expr);
+  if(!result){ showError('Unable to differentiate. Try a simpler expression or check syntax.'); return; }
+
+  const simplified = simplify(result);
+  const rules = detectRules(expr, 'diff');
+  const steps = buildDiffSteps(expr, simplified, rules);
+
+  renderSolution(steps, simplified, expr, 'diff');
+  drawGraph(expr, simplified, 'diff');
+  awardXP(20);
+}
+
+function solveIndef(expr, raw){
+  const result = calcIntegral(expr);
+  if(!result){ showError('Unable to integrate. Try u-sub or integration by parts manually. Check expression syntax.'); return; }
+
+  const rules = detectRules(expr, 'indef');
+  const steps = buildIntSteps(expr, result, rules);
+
+  renderSolution(steps, result, expr, 'indef');
+  drawGraph(expr, null, 'indef');
+  awardXP(25);
+}
+
+function solveDefInt(expr, raw){
+  const a = document.getElementById('bound-a').value || '0';
+  const b = document.getElementById('bound-b').value || '1';
+  const result = calcDefinite(expr, a, b);
+  if(!result){ showError('Could not compute definite integral. Check bounds and expression.'); return; }
+
+  const rules = detectRules(expr, 'def');
+  const indef = calcIntegral(expr) || '(antiderivative)';
+  const steps = buildDefIntSteps(expr, indef, result, rules, a, b);
+
+  renderSolution(steps, result.numeric, expr, 'def', a, b);
+  drawGraph(expr, null, 'def', parseFloat(a), parseFloat(b));
+  awardXP(30);
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP BUILDERS
+// ═══════════════════════════════════════════════════════════
+function buildDiffSteps(expr, result, rules){
+  const steps = [];
+  const mainRule = rules[0];
+  const rInfo = RULE_INFO[mainRule] || RULE_INFO.basic;
+
+  steps.push({
+    num:'STEP 1', title:'📋 IDENTIFY THE PROBLEM',
+    body:`We need to differentiate: <span class="math-expr">d/dx[ ${fmt(expr)} ]</span>
+    <br><br>Scanning the expression for structure...
+    <br>• Contains products? <span class="highlight">${rules.includes('product')?'YES — Product Rule needed':'No'}</span>
+    <br>• Contains composition? <span class="highlight">${rules.includes('chain')?'YES — Chain Rule needed':'No'}</span>
+    <br>• Contains fractions? <span class="highlight">${rules.includes('quotient')?'YES — Quotient Rule needed':'No'}</span>
+    <br>• Contains trig functions? <span class="highlight">${rules.includes('trig')?'YES':'No'}</span>
+    <br>• Contains exponentials? <span class="highlight">${rules.includes('exp')?'YES':'No'}</span>`
+  });
+
+  steps.push({
+    num:'STEP 2', title:'⚔️ SELECT TECHNIQUE',
+    body:`<span class="rule-tag">${rInfo.name.toUpperCase()}</span>
+    ${rules.length > 1 ? rules.slice(1).map(r=>`<span class="rule-tag">${(RULE_INFO[r]||{name:r}).name.toUpperCase()}</span>`).join('') : ''}
+    <br><br><b style="color:var(--accent3)">WHY this technique?</b><br>${rInfo.why}
+    <br><br><b style="color:var(--accent4)">Formula:</b><br><span class="math-expr">${rInfo.formula}</span>`
+  });
+
+  if(mainRule === 'product'){
+    const parts = splitProduct(expr);
+    steps.push({
+      num:'STEP 3', title:'✂️ IDENTIFY u AND v',
+      body:`Split the expression into two factors:
+      <br><br><span class="math-expr">u = ${fmt(parts[0])}</span>
+      <br><span class="math-expr">v = ${fmt(parts[1])}</span>
+      <br><br>Now find each derivative:
+      <br><span class="math-expr">u' = d/dx[${fmt(parts[0])}]</span>
+      <br><span class="math-expr">v' = d/dx[${fmt(parts[1])}]</span>
+      <br><br>Apply: <span class="math-expr">u'v + uv'</span>`
+    });
+  } else if(mainRule === 'chain'){
+    const inner = detectInner(expr);
+    steps.push({
+      num:'STEP 3', title:'🔗 IDENTIFY INNER & OUTER',
+      body:`Recognize the composite structure:
+      <br><br><span class="math-expr">outer function f(u) = ${detectOuter(expr)}</span>
+      <br><span class="math-expr">inner function g(x) = ${inner}</span>
+      <br><br>Chain Rule: <span class="math-expr">f'(g(x)) · g'(x)</span>
+      <br><br>Differentiate outer first (treating inner as constant), then multiply by derivative of inner.`
+    });
+  } else if(mainRule === 'quotient'){
+    const parts = splitQuotient(expr);
+    steps.push({
+      num:'STEP 3', title:'✂️ IDENTIFY NUMERATOR & DENOMINATOR',
+      body:`Split as:
+      <br><br><span class="math-expr">u (top) = ${fmt(parts[0])}</span>
+      <br><span class="math-expr">v (bottom) = ${fmt(parts[1])}</span>
+      <br><br>Apply: <span class="math-expr">(u'v − uv') / v²</span>
+      <br><br>Memory: <em>"Low d-High minus High d-Low, over Low squared go"</em>`
+    });
+  } else {
+    steps.push({
+      num:'STEP 3', title:'📐 APPLY THE RULE',
+      body:`Applying <span class="rule-tag">${rInfo.name.toUpperCase()}</span>
+      <br><br>Formula: <span class="math-expr">${rInfo.formula}</span>
+      <br><br>Example: <span class="math-expr">${rInfo.example}</span>`
+    });
+  }
+
+  steps.push({
+    num:'STEP 4', title:'🔢 COMPUTE DERIVATIVE',
+    body:`Applying all rules to <span class="math-expr">${fmt(expr)}</span>:
+    <br><br>↓ Differentiating term by term...
+    <br>↓ Applying ${rInfo.name}...
+    <br>↓ Collecting and simplifying terms...
+    <br><br><span class="math-expr">d/dx[${fmt(expr)}] = ${fmt(result)}</span>`
+  });
+
+  steps.push({
+    num:'STEP 5', title:'⚠️ COMMON MISTAKES TO AVOID',
+    body:`<span class="error-tag">WATCH OUT</span>
+    <br><br>${rInfo.mistakes}
+    <br><br>✓ Always check: did you apply every needed rule?
+    <br>✓ Check: did you simplify correctly?
+    <br>✓ Verify by differentiating your answer — does it match?`
+  });
+
+  steps.push({
+    num:'STEP 6', title:'✅ VERIFY & UNDERSTAND',
+    body:`<b>Geometric meaning:</b> The derivative <span class="math-expr">${fmt(result)}</span> gives the slope of the tangent line to <span class="math-expr">f(x)=${fmt(expr)}</span> at any point x.
+    <br><br>Graph shows:
+    <br>🔵 Blue = Original function f(x)
+    <br>🟢 Green = Derivative f'(x)
+    <br><br>Where f'(x)=0, the original function has a peak or valley!`
+  });
+
+  return steps;
+}
+
+function buildIntSteps(expr, result, rules){
+  const steps = [];
+  const mainRule = rules[0];
+  const rInfo = RULE_INFO[mainRule] || RULE_INFO['basic-int'];
+
+  steps.push({
+    num:'STEP 1', title:'📋 IDENTIFY THE INTEGRAL',
+    body:`We need to compute: <span class="math-expr">∫ ${fmt(expr)} dx</span>
+    <br><br>Scanning for applicable techniques:
+    <br>• Product of x and transcendental? <span class="highlight">${rules.includes('parts')?'YES — Integration by Parts':'No'}</span>
+    <br>• Composite function? <span class="highlight">${rules.includes('usub')?'YES — U-Substitution possible':'No'}</span>
+    <br>• Trig powers/products? <span class="highlight">${rules.includes('trig-int')?'YES — Trig Identities needed':'No'}</span>
+    <br>• Special form? <span class="highlight">${rules.includes('arctrig')?'YES — Inverse Trig':'No'}</span>`
+  });
+
+  steps.push({
+    num:'STEP 2', title:'⚔️ SELECT TECHNIQUE',
+    body:`<span class="rule-tag">${rInfo.name.toUpperCase()}</span>
+    <br><br><b style="color:var(--accent3)">WHY this technique?</b><br>${rInfo.why}
+    <br><br><b style="color:var(--accent4)">Formula:</b><br><span class="math-expr">${rInfo.formula}</span>`
+  });
+
+  if(mainRule === 'parts'){
+    steps.push({
+      num:'STEP 3', title:'🔤 CHOOSE u AND dv (LIATE)',
+      body:`LIATE priority: <span class="highlight">L</span>og > <span class="highlight">I</span>nv-Trig > <span class="highlight">A</span>lgebraic > <span class="highlight">T</span>rig > <span class="highlight">E</span>xp
+      <br><br>Identify the two factors in <span class="math-expr">${fmt(expr)}</span>
+      <br>• Choose u = higher priority function
+      <br>• Choose dv = remaining part
+      <br><br>Then: find du = u'dx and v = ∫dv
+      <br>Apply: <span class="math-expr">uv − ∫v du</span>`
+    });
+  } else if(mainRule === 'usub'){
+    const inner = detectInner(expr) || 'inner expression';
+    steps.push({
+      num:'STEP 3', title:'🔄 SET UP SUBSTITUTION',
+      body:`Spot the pattern: a function and its derivative appear together.
+      <br><br>Let: <span class="math-expr">u = ${inner}</span>
+      <br>Then: <span class="math-expr">du = derivative of u · dx</span>
+      <br><br>Rewrite everything in terms of u and du.
+      <br>After integrating, substitute back: u → ${inner}`
+    });
+  } else if(mainRule === 'trig-int'){
+    steps.push({
+      num:'STEP 3', title:'🔺 APPLY TRIG IDENTITY',
+      body:`Use half-angle identities to reduce powers:
+      <br><br><span class="math-expr">sin²(x) = (1 − cos(2x)) / 2</span>
+      <br><span class="math-expr">cos²(x) = (1 + cos(2x)) / 2</span>
+      <br><span class="math-expr">tan²(x) = sec²(x) − 1</span>
+      <br><br>Rewrite the integrand using these, then integrate term by term.
+      <br>Much simpler to integrate after substitution!`
+    });
+  } else if(mainRule === 'log-int-recip'){
+    steps.push({
+      num:'STEP 3', title:'⚠️ SPECIAL CASE: ∫1/x',
+      body:`This is the <b>exception</b> to the Power Rule!
+      <br><br>The power rule ∫xⁿdx = xⁿ⁺¹/(n+1)+C <b>fails</b> when n=−1.
+      <br><br>Instead: <span class="math-expr">∫(1/x)dx = ln|x| + C</span>
+      <br><br>⚠️ Note the <b>absolute value</b> — this handles negative x too.
+      <br>More generally: <span class="math-expr">∫(k/x)dx = k·ln|x| + C</span>`
+    });
+  } else if(mainRule === 'partial-frac'){
+    steps.push({
+      num:'STEP 3', title:'✂️ DECOMPOSE INTO PARTIAL FRACTIONS',
+      body:`Factor the denominator, then decompose:
+      <br><br>• (x+a)(x+b) → <span class="math-expr">A/(x+a) + B/(x+b)</span>
+      <br>• Multiply both sides by denominator, equate coefficients → find A, B
+      <br><br>Then integrate each piece:
+      <br><span class="math-expr">∫A/(x+a)dx = A·ln|x+a| + C</span>
+      <br><br>Sum all pieces for the final answer!`
+    });
+  } else if(mainRule === 'trig-sub'){
+    steps.push({
+      num:'STEP 3', title:'📐 SET UP TRIG SUBSTITUTION',
+      body:`Identify the radical form, then substitute:
+      <br><br>√(a²−x²) → let <span class="math-expr">x = a·sinθ</span>, dx = a·cosθ dθ
+      <br>√(a²+x²) → let <span class="math-expr">x = a·tanθ</span>, dx = a·sec²θ dθ
+      <br>√(x²−a²) → let <span class="math-expr">x = a·secθ</span>, dx = a·secθ·tanθ dθ
+      <br><br>After integrating in θ, draw a right triangle and back-substitute to x.`
+    });
+  } else if(mainRule === 'quad-complete'){
+    steps.push({
+      num:'STEP 3', title:'🔳 COMPLETE THE SQUARE',
+      body:`Rewrite: <span class="math-expr">ax²+bx+c = a(x+h)²+k</span>
+      <br><br>Then use the standard forms:
+      <br><span class="math-expr">∫du/(u²+a²) = (1/a)arctan(u/a)+C</span>
+      <br><span class="math-expr">∫du/√(a²−u²) = arcsin(u/a)+C</span>
+      <br><br>Substitute u = x+h, du = dx.`
+    });
+  } else if(mainRule === 'weierstrass'){
+    steps.push({
+      num:'STEP 3', title:'🔄 WEIERSTRASS SUBSTITUTION',
+      body:`Let <span class="math-expr">t = tan(x/2)</span>. Then:
+      <br><span class="math-expr">sin(x) = 2t/(1+t²)</span>
+      <br><span class="math-expr">cos(x) = (1−t²)/(1+t²)</span>
+      <br><span class="math-expr">dx = 2dt/(1+t²)</span>
+      <br><br>This converts the rational trig integrand into a rational function of t.
+      <br>Then apply partial fractions to integrate.`
+    });
+  } else {
+    steps.push({
+      num:'STEP 3', title:'📐 APPLY ANTIDIFFERENTIATION',
+      body:`Apply reverse differentiation rules:
+      <br><br>Formula: <span class="math-expr">${rInfo.formula}</span>
+      <br>Example: <span class="math-expr">${rInfo.example}</span>
+      <br><br>Integrate term by term, applying constant multiple rule as needed.`
+    });
+  }
+
+  steps.push({
+    num:'STEP 4', title:'🔢 COMPUTE ANTIDERIVATIVE',
+    body:`Applying ${rInfo.name} to <span class="math-expr">${fmt(expr)}</span>:
+    <br><br>↓ Setting up integration...
+    <br>↓ Applying ${rInfo.name}...
+    <br>↓ Combining and simplifying...
+    <br><br><span class="math-expr">∫ ${fmt(expr)} dx = ${fmt(result)}</span>
+    <br><br>⚠️ Remember: The constant <span class="math-expr">+C</span> represents any constant, since d/dx[constant]=0.`
+  });
+
+  steps.push({
+    num:'STEP 5', title:'✅ VERIFY THE ANSWER',
+    body:`Verification: <b>differentiate the answer</b> — you should get back the original!
+    <br><br>Let <span class="math-expr">F(x) = ${fmt(result)}</span>
+    <br>Compute <span class="math-expr">d/dx[ F(x) ]</span>
+    <br>If <span class="math-expr">F'(x) = ${fmt(expr)}</span> ✓, the answer is correct!
+    <br><br>${rInfo.mistakes}
+    <br><br>📈 The shaded area in the graph shows ∫f(x)dx from 0 to x.`
+  });
+
+  return steps;
+}
+
+function buildDefIntSteps(expr, indef, result, rules, a, b){
+  const steps = [];
+  const mainRule = rules[0];
+  const rInfo = RULE_INFO[mainRule] || RULE_INFO['basic-int'];
+
+  steps.push({
+    num:'STEP 1', title:'📋 IDENTIFY DEFINITE INTEGRAL',
+    body:`We need: <span class="math-expr">∫ from ${a} to ${b} of ${fmt(expr)} dx</span>
+    <br><br><b style="color:var(--accent4)">Fundamental Theorem of Calculus (Part 2):</b>
+    <br><span class="math-expr">∫ₐᵇ f(x)dx = F(b) − F(a)</span>
+    <br><br>where F(x) is any antiderivative of f(x).
+    <br><br>Plan: Find F(x) first, then evaluate at bounds.`
+  });
+
+  steps.push({
+    num:'STEP 2', title:'⚔️ FIND ANTIDERIVATIVE',
+    body:`Using <span class="rule-tag">${rInfo.name.toUpperCase()}</span>:
+    <br><br><span class="math-expr">F(x) = ∫ ${fmt(expr)} dx = ${fmt(indef)}</span>
+    <br><br>Note: The +C cancels out in definite integration!
+    <br>(F(b)+C) − (F(a)+C) = F(b) − F(a)`
+  });
+
+  steps.push({
+    num:'STEP 3', title:'🔢 EVALUATE AT BOUNDS',
+    body:`Apply FTC Part 2:
+    <br><br><span class="math-expr">∫ₐᵇ f(x)dx = F(b) − F(a)</span>
+    <br><br>• Compute <span class="math-expr">F(${b})</span> — substitute x = ${b}
+    <br>• Compute <span class="math-expr">F(${a})</span> — substitute x = ${a}
+    <br>• Subtract: <span class="math-expr">F(${b}) − F(${a})</span>`
+  });
+
+  steps.push({
+    num:'STEP 4', title:'📊 GEOMETRIC MEANING',
+    body:`The definite integral represents the <b>NET SIGNED AREA</b> between the curve and x-axis from x=${a} to x=${b}.
+    <br><br>• 🟢 Area <b>above</b> x-axis is POSITIVE
+    <br>• 🔴 Area <b>below</b> x-axis is NEGATIVE
+    <br>• Final value = algebraic sum of both
+    <br><br>The graph shows the shaded region whose area equals <span class="math-expr">${result.numeric}</span>.`
+  });
+
+  steps.push({
+    num:'STEP 5', title:'✅ FINAL COMPUTATION',
+    body:`<span class="math-expr">∫ from ${a} to ${b} of ${fmt(expr)} dx</span>
+    <br><br>${result.symbolic ? `Exact: <span class="math-expr">${fmt(result.symbolic)}</span><br>` : ''}
+    Numerical value: <span class="math-expr" style="font-size:22px">${result.numeric}</span>`
+  });
+
+  return steps;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER SOLUTION
+// ═══════════════════════════════════════════════════════════
+function renderSolution(steps, finalAnswer, expr, op, a, b){
+  const sc = document.getElementById('solution-container');
+  sc.innerHTML = '';
+
+  // Problem header
+  const header = document.createElement('div');
+  header.className = 'step-card';
+  header.style.borderColor = 'var(--accent2)';
+  header.innerHTML = `
+    <div class="step-number">PROBLEM</div>
+    <div class="step-title">📝 YOUR PROBLEM</div>
+    <div class="step-body">
+      ${op==='diff'?'Differentiate:':'Integrate:'}
+      <br><span class="math-expr" style="font-size:22px">${renderMath(expr, op)}</span>
+    </div>`;
+  sc.appendChild(header);
+
+  // Steps with delay animation
+  steps.forEach((step, i) => {
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.style.animationDelay = (i*0.05)+'s';
+    card.innerHTML = `
+      <div class="step-number">${step.num}</div>
+      <div class="step-title">${step.title}</div>
+      <div class="step-body">${step.body}</div>`;
+    sc.appendChild(card);
+  });
+
+  // Hints
+  const hintCard = document.createElement('div');
+  hintCard.className = 'hint-card';
+  hintCard.id = 'hint-card';
+  hintCard.innerHTML = `
+    <div class="hint-header">💡 PROGRESSIVE HINTS</div>
+    <div class="hint-body" id="hint-body">Click to reveal hints...</div>
+    <div style="margin-top:6px">
+      <button class="action-btn secondary" style="font-size:6px;padding:4px 8px" onclick="showHint()">HINT ${state.hintLevel+1}</button>
+    </div>`;
+  hintCard.onclick = ()=>showHint();
+  sc.appendChild(hintCard);
+
+  // Final Answer
+  const fCard = document.createElement('div');
+  fCard.className = 'final-answer-card';
+  fCard.innerHTML = `
+    <div class="final-answer-label">★ FINAL ANSWER ★</div>
+    <div class="final-answer-value">${fmt(finalAnswer)}</div>`;
+  sc.appendChild(fCard);
+
+  // Practice quiz
+  if(state.mode === 'practice' || state.mode === 'learn'){
+    const quiz = buildQuiz(expr, op, finalAnswer);
+    if(quiz) sc.appendChild(quiz);
+  }
+
+  state.solved++;
+  state.total++;
+  document.getElementById('status-solved').textContent = state.solved;
+  updateStats();
+  setStatus('SOLVED ✓');
+  sparkles();
+  state.lastAnswer = {expr, derivative: finalAnswer, op, a: a||0, b: b||1};
+}
+
+function buildQuiz(expr, op, answer){
+  const questions = [
+    {q: op==='diff'?'Which rule was PRIMARILY used?':'Which technique was PRIMARILY used?',
+     opts: ['Power Rule','Chain Rule','Product Rule','Quotient Rule','U-Substitution','Integration by Parts'],
+     hint: 'Think about the structure of the function.'},
+    {q:'What does this result represent geometrically?',
+     opts: op==='diff'?['Slope of tangent line','Area under curve','Volume of solid','Length of arc']:['Area under curve','Slope at a point','Maximum value','Rate of change'],
+     correct: 0}
+  ];
+  const q = questions[Math.floor(Math.random()*questions.length)];
+  const card = document.createElement('div');
+  card.className = 'quiz-card';
+  card.innerHTML = `
+    <div class="step-number">QUICK CHECK</div>
+    <div class="quiz-q">❓ ${q.q}</div>
+    <div class="quiz-options">
+      ${q.opts.slice(0,4).map((o,i)=>`<button class="quiz-opt" onclick="quizAnswer(this,${i},${q.correct||0})">${o}</button>`).join('')}
+    </div>`;
+  return card;
+}
+
+function quizAnswer(btn, idx, correct){
+  const opts = btn.closest('.quiz-options').querySelectorAll('.quiz-opt');
+  opts.forEach(o=>o.disabled=true);
+  if(idx === correct){
+    btn.classList.add('correct');
+    state.correct++;
+    awardXP(15);
+    toast('✓ Correct! +15 XP');
+  } else {
+    btn.classList.add('wrong');
+    opts[correct].classList.add('correct');
+    toast('✗ Incorrect! Study the steps above.');
+  }
+  state.total++;
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════════════════
+// GRAPHING ENGINE
+// ═══════════════════════════════════════════════════════════
+function drawGraph(expr, derivExpr, op, a, b){
+  const isDark = document.documentElement.dataset.theme !== 'light';
+  const bg = isDark ? '#0d0d25' : '#f5f5ff';
+  const gridC = isDark ? '#2a2a6a' : '#ccccee';
+  const textC = isDark ? '#6677aa' : '#5555aa';
+  const fontFamily = "'Share Tech Mono', monospace";
+
+  try{
+    const compiled = math.compile(toMathJs(expr));
+    const xs = [], ys = [], yds = [], yint = [];
+
+    let xMin=-4, xMax=4;
+    if(op === 'def'){
+      xMin = (isNaN(a)?-4:a) - 1;
+      xMax = (isNaN(b)?4:b) + 1;
+    }
+
+    for(let i=0;i<=300;i++){
+      const x = xMin + (xMax-xMin)*i/300;
+      xs.push(x);
+      try{
+        const y = compiled.evaluate({x, pi:Math.PI, e:Math.E});
+        ys.push(isFinite(y) && Math.abs(y) < 1e4 ? y : null);
+      }catch(e){ys.push(null)}
+
+      // derivative
+      if(derivExpr){
+        try{
+          const dc = math.compile(toMathJs(derivExpr));
+          const yd = dc.evaluate({x, pi:Math.PI, e:Math.E});
+          yds.push(isFinite(yd) && Math.abs(yd) < 1e4 ? yd : null);
+        }catch(e){yds.push(null)}
+      }
+    }
+
+    const traces = [];
+
+    // main function
+    traces.push({
+      x: xs, y: ys,
+      mode:'lines', name:'f(x)',
+      line:{color:'#00aaff',width:2.5},
+      hovertemplate:'x=%{x:.3f}<br>f(x)=%{y:.3f}<extra>f(x)</extra>'
+    });
+
+    // derivative
+    if(derivExpr && yds.some(v=>v!==null)){
+      traces.push({
+        x: xs, y: yds,
+        mode:'lines', name:"f'(x)",
+        line:{color:'#00ffcc',width:2,dash:'dot'},
+        hovertemplate:"x=%{x:.3f}<br>f'(x)=%{y:.3f}<extra>f'(x)</extra>"
+      });
+    }
+
+    // Shade for definite integral
+    if(op === 'def' && !isNaN(a) && !isNaN(b)){
+      const xA = parseFloat(a), xB = parseFloat(b);
+      const shadeX = [], shadeY = [];
+      const steps2 = 100;
+      for(let i=0;i<=steps2;i++){
+        const x = xA + (xB-xA)*i/steps2;
+        shadeX.push(x);
+        try{
+          const y = compiled.evaluate({x,pi:Math.PI,e:Math.E});
+          shadeY.push(isFinite(y)?y:0);
+        }catch(e){shadeY.push(0)}
+      }
+      // close the shape
+      shadeX.push(xB, xA);
+      shadeY.push(0, 0);
+      traces.push({
+        x: shadeX, y: shadeY,
+        fill:'toself',
+        fillcolor: isDark?'rgba(0,255,204,0.15)':'rgba(0,128,200,0.15)',
+        line:{color:'rgba(0,255,204,0.6)',width:1},
+        name:'∫f dx',
+        hoverinfo:'skip'
+      });
+    }
+
+    const layout = {
+      paper_bgcolor: bg,
+      plot_bgcolor: bg,
+      margin:{l:40,r:20,t:20,b:40},
+      font:{color:textC, family:fontFamily, size:11},
+      xaxis:{
+        gridcolor:gridC, zerolinecolor:isDark?'#4a4aaa':'#9999cc',
+        tickfont:{color:textC,size:10},
+        showgrid:true
+      },
+      yaxis:{
+        gridcolor:gridC, zerolinecolor:isDark?'#4a4aaa':'#9999cc',
+        tickfont:{color:textC,size:10},
+        showgrid:true
+      },
+      legend:{
+        font:{color:textC,size:10},
+        bgcolor:'rgba(0,0,0,0)',
+        bordercolor:gridC,borderwidth:1
+      },
+      hoverlabel:{bgcolor:bg,bordercolor:isDark?'#00ffcc':'#0077aa',font:{color:textC}},
+      showlegend:true
+    };
+
+    const config = {
+      displayModeBar:false,
+      responsive:true
+    };
+
+    const gp = document.getElementById('graph-plot');
+    const ph = document.getElementById('graph-placeholder');
+    gp.style.display = 'block';
+    ph.style.display = 'none';
+
+    Plotly.newPlot('graph-plot', traces, layout, config);
+  }catch(e){
+    console.warn('Graph error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AI TUTOR CHAT — Powered by Anthropic API
+// ═══════════════════════════════════════════════════════════
+let aiChatHistory = [];
+
+async function sendAiMessage(){
+  const inp = document.getElementById('ai-input');
+  const msg = inp.value.trim();
+  if(!msg) return;
+  inp.value = '';
+  inp.disabled = true;
+  document.getElementById('ai-send').disabled = true;
+
+  addAiMessage(msg, 'user');
+
+  // Build context about current problem
+  let context = '';
+  if(state.lastAnswer){
+    const opLabel = state.op==='diff'?'differentiating':'integrating';
+    context = `The student is currently working on ${opLabel} the expression: ${state.lastAnswer.expr}. The answer is: ${state.lastAnswer.derivative}.`;
+  }
+
+  // Add to history
+  aiChatHistory.push({role:'user', content: msg});
+
+  // Typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'ai-msg';
+  typingDiv.id = 'ai-typing';
+  typingDiv.innerHTML = '<div class="ai-label">PROF. CALC</div><span class="loading-dots">Thinking</span>';
+  document.getElementById('ai-messages').appendChild(typingDiv);
+  document.getElementById('ai-messages').scrollTop = 99999;
+
+  try {
+    const systemPrompt = `You are Prof. Calc, an expert calculus AI tutor inside RetroCalc — a retro-RPG styled math app. You explain calculus concepts clearly, step by step, with enthusiasm. Keep responses concise (3-6 sentences max) but precise. Use math notation like d/dx, ∫, f'(x) etc. Be encouraging and educational. ${context}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: aiChatHistory
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.content && data.content[0] && data.content[0].text
+      ? data.content[0].text
+      : 'I encountered an issue. Please ask again!';
+
+    // Save assistant reply to history (keep last 10 turns)
+    aiChatHistory.push({role:'assistant', content: reply});
+    if(aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
+
+    typingDiv.remove();
+    addAiMessage(reply, 'ai');
+  } catch(err) {
+    typingDiv.remove();
+    addAiMessage('Connection error. Check your internet and try again!', 'ai');
+  }
+
+  inp.disabled = false;
+  document.getElementById('ai-send').disabled = false;
+  inp.focus();
+}
+
+function addAiMessage(msg, type){
+  const div = document.createElement('div');
+  div.className = 'ai-msg' + (type==='user'?' user':'');
+  if(type==='ai') div.innerHTML = `<div class="ai-label">PROF. CALC</div>${msg}`;
+  else div.textContent = '> '+msg;
+  const container = document.getElementById('ai-messages');
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function aiInputKey(e){if(e.key==='Enter') sendAiMessage()}
+
+// ═══════════════════════════════════════════════════════════
+// HINTS
+// ═══════════════════════════════════════════════════════════
+const HINTS = [
+  "💡 Hint 1: Look at the structure of the expression. Is it a sum, product, or composition?",
+  "💡 Hint 2: Identify which functions are multiplied, divided, or nested inside each other.",
+  "💡 Hint 3: For the first step, try differentiating/integrating the simplest part first, then handle the complex parts."
+];
+
+function showHint(){
+  if(state.hintLevel >= HINTS.length){ toast('No more hints! Study the full solution above.'); return; }
+  const hintBody = document.getElementById('hint-body');
+  if(hintBody){
+    hintBody.textContent = HINTS[state.hintLevel];
+    hintBody.className = 'hint-body revealed';
+    state.hintLevel++;
+    // small XP penalty for hints
+    if(state.xp > 5) state.xp -= 5;
+    updateXpBar();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXAM MODE
+// ═══════════════════════════════════════════════════════════
+const EXAM_PROBLEMS = [
+  {expr:'x^3', op:'diff', answer:'3*x^2', label:'d/dx[x³]'},
+  {expr:'sin(x)', op:'diff', answer:'cos(x)', label:'d/dx[sin(x)]'},
+  {expr:'x^2 + 3*x', op:'diff', answer:'2*x + 3', label:'d/dx[x²+3x]'},
+  {expr:'e^x', op:'diff', answer:'e^x', label:'d/dx[eˣ]'},
+  {expr:'ln(x)', op:'diff', answer:'1/x', label:'d/dx[ln(x)]'},
+  {expr:'sec(x)', op:'diff', answer:'sec(x)*tan(x)', label:'d/dx[sec(x)]'},
+  {expr:'cot(x)', op:'diff', answer:'-csc(x)^2', label:'d/dx[cot(x)]'},
+  {expr:'sinh(x)', op:'diff', answer:'cosh(x)', label:'d/dx[sinh(x)]'},
+  {expr:'x^2*sin(x)', op:'diff', answer:'2*x*sin(x)+x^2*cos(x)', label:'d/dx[x²sin(x)]'},
+  {expr:'sin(x)/x', op:'diff', answer:'(cos(x)*x-sin(x))/x^2', label:'d/dx[sin(x)/x]'},
+  {expr:'x^2', op:'indef', answer:'x^3/3', label:'∫x²dx'},
+  {expr:'cos(x)', op:'indef', answer:'sin(x)', label:'∫cos(x)dx'},
+  {expr:'e^x', op:'indef', answer:'e^x', label:'∫eˣdx'},
+  {expr:'1/x', op:'indef', answer:'ln(x)', label:'∫1/x dx'},
+  {expr:'x^3', op:'def', a:'0', b:'2', answer:'4', label:'∫₀² x³dx'},
+  {expr:'sin(x)', op:'def', a:'0', b:'pi', answer:'2', label:'∫₀π sin(x)dx'},
+];
+
+function startExam(){
+  state.examQuestions = [...EXAM_PROBLEMS].sort(()=>Math.random()-0.5).slice(0,5);
+  state.examIdx = 0;
+  state.examScore = 0;
+  state.examSeconds = 0;
+  clearAll();
+  stopExam();
+  state.examTimer = setInterval(()=>{
+    state.examSeconds++;
+    setStatus('EXAM: '+(Math.floor(state.examSeconds/60)+'m '+state.examSeconds%60+'s'));
+  },1000);
+  showExamQuestion();
+}
+
+function stopExam(){
+  if(state.examTimer){ clearInterval(state.examTimer); state.examTimer=null; }
+}
+
+function showExamQuestion(){
+  if(state.examIdx >= state.examQuestions.length){
+    // show results
+    const sc = document.getElementById('solution-container');
+    sc.innerHTML = `
+      <div class="final-answer-card" style="margin-top:20px">
+        <div class="final-answer-label">🎯 EXAM COMPLETE!</div>
+        <div class="final-answer-value">${state.examScore}/${state.examQuestions.length}</div>
+      </div>
+      <div class="step-card">
+        <div class="step-title">Results</div>
+        <div class="step-body">
+          Score: ${state.examScore}/${state.examQuestions.length}<br>
+          Time: ${Math.floor(state.examSeconds/60)}m ${state.examSeconds%60}s<br>
+          Accuracy: ${Math.round(state.examScore/state.examQuestions.length*100)}%
+          <br><br>XP earned: <span style="color:var(--accent3)">${state.examScore * 40}</span>
+        </div>
+      </div>`;
+    awardXP(state.examScore * 40);
+    stopExam();
+    return;
+  }
+  const q = state.examQuestions[state.examIdx];
+  setOp(q.op);
+  document.getElementById('equation-input').value = q.expr;
+  if(q.a) document.getElementById('bound-a').value = q.a;
+  if(q.b) document.getElementById('bound-b').value = q.b;
+  onInputChange();
+
+  const sc = document.getElementById('solution-container');
+  sc.innerHTML = `
+    <div class="step-card" style="border-color:var(--accent3)">
+      <div class="step-number">EXAM Q${state.examIdx+1}/${state.examQuestions.length}</div>
+      <div class="step-title">📝 ${q.label}</div>
+      <div class="step-body">Enter your answer below, then press SOLVE to check.</div>
+    </div>
+    <div class="quiz-card">
+      <div class="quiz-q">What is the answer?</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input id="exam-ans" style="flex:1;background:var(--step-bg);border:2px solid var(--border);color:var(--text-bright);font-family:'VT323',monospace;font-size:18px;padding:4px 8px;outline:none" placeholder="Your answer..." onkeydown="if(event.key==='Enter')checkExamAnswer()">
+        <button class="action-btn primary" onclick="checkExamAnswer()">CHECK</button>
+      </div>
+    </div>`;
+}
+
+function checkExamAnswer(){
+  const q = state.examQuestions[state.examIdx];
+  const userAns = document.getElementById('exam-ans').value.trim().toLowerCase().replace(/\s+/g,'');
+  const correct = q.answer.toLowerCase().replace(/\s+/g,'');
+
+  // Simple comparison (normalize)
+  const isCorrect = userAns === correct ||
+    userAns.replace(/\*/g,'') === correct.replace(/\*/g,'') ||
+    userAns === correct.replace(/\*\*/g,'^');
+
+  const sc = document.getElementById('solution-container');
+  const result = document.createElement('div');
+  result.className = 'step-card';
+  result.style.borderColor = isCorrect ? 'var(--accent)' : 'var(--error-border)';
+  result.innerHTML = `
+    <div class="step-title">${isCorrect?'✅ CORRECT! +40 XP':'❌ INCORRECT'}</div>
+    <div class="step-body">
+      Your answer: <span class="math-expr">${userAns}</span><br>
+      Correct answer: <span class="math-expr">${fmt(q.answer)}</span><br><br>
+      <button class="action-btn secondary" style="margin-top:8px" onclick="nextExamQ()">NEXT QUESTION ▶</button>
+    </div>`;
+  sc.appendChild(result);
+
+  if(isCorrect){ state.examScore++; state.streak++; }
+  else state.streak = 0;
+  state.examIdx++;
+  updateStats();
+}
+
+function nextExamQ(){ showExamQuestion(); }
+
+// ═══════════════════════════════════════════════════════════
+// RULE LIBRARY
+// ═══════════════════════════════════════════════════════════
+function openRuleLib(){
+  const content = document.getElementById('rule-lib-content');
+  const diffKeys = ['power','chain','product','quotient','trig','trig-recip','exp','log','log-base','basic','implicit','hyperbolic','second-deriv','abs-val'];
+  const intKeys = ['power-int','log-int-recip','basic-int','exp-int','log-int','usub','parts',
+                 'trig-int','trig-sub','arctrig','partial-frac','quad-complete',
+                 'hyp-int','weierstrass','abs-val'];
+  content.innerHTML = `
+    <div class="rule-section-header">∂ DIFFERENTIATION RULES</div>
+    ${diffKeys.filter(k=>RULE_INFO[k]).map(k=>ruleItem(RULE_INFO[k])).join('')}
+    <div class="rule-section-header">∫ INTEGRATION RULES</div>
+    ${intKeys.filter(k=>RULE_INFO[k]).map(k=>ruleItem(RULE_INFO[k])).join('')}
+  `;
+  document.getElementById('rule-lib-overlay').classList.add('open');
+}
+
+function ruleItem(r){
+  return `<div class="rule-item">
+    <div class="rule-name">📐 ${r.name}</div>
+    <div class="rule-formula">${r.formula}</div>
+    <div class="rule-desc">${r.why}</div>
+    <div class="rule-example">Example: ${r.example}</div>
+    <div style="margin-top:4px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--error-border)">⚠ ${r.mistakes}</div>
+  </div>`;
+}
+
+function closeRuleLib(e, force){
+  if(force || e.target === document.getElementById('rule-lib-overlay')){
+    document.getElementById('rule-lib-overlay').classList.remove('open');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// XP / LEVEL SYSTEM
+// ═══════════════════════════════════════════════════════════
+function awardXP(amount){
+  state.xp += amount;
+  const xpForLevel = state.level * 100;
+  if(state.xp >= xpForLevel){
+    state.xp -= xpForLevel;
+    state.level++;
+    toast('🎉 LEVEL UP! Now Level '+state.level);
+  }
+  updateXpBar();
+  saveState();
+}
+
+function updateXpBar(){
+  const xpForLevel = state.level * 100;
+  document.getElementById('xp-fill').style.width = (state.xp/xpForLevel*100)+'%';
+  document.getElementById('xp-label').textContent = `LV.${state.level} — ${state.xp} XP`;
+}
+
+function updateStats(){
+  document.getElementById('status-solved').textContent = state.solved;
+  document.getElementById('status-streak').textContent = state.streak;
+  const acc = state.total > 0 ? Math.round(state.correct/state.total*100)+'%' : '-';
+  document.getElementById('status-acc').textContent = acc;
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function fmt(expr){
+  if(!expr) return '';
+  return fromNerdamer(String(expr))
+    .replace(/\*\*/g,'^')
+    .replace(/\*/g,'·')
+    .replace(/\bpi\b/g,'π')
+    .replace(/\binfinity\b/gi,'∞')
+    .replace(/sqrt\(([^)]+)\)/g,'√($1)')
+    .replace(/\^2(?=[^0-9]|$)/g,'²')
+    .replace(/\^3(?=[^0-9]|$)/g,'³');
+}
+
+function splitProduct(expr){
+  // Try to split on * at the top level
+  let depth=0;
+  for(let i=0;i<expr.length;i++){
+    if(expr[i]==='(') depth++;
+    else if(expr[i]===')')depth--;
+    else if(expr[i]==='*'&&depth===0){
+      return [expr.slice(0,i).trim(), expr.slice(i+1).trim()];
+    }
+  }
+  return [expr, '1'];
+}
+
+function splitQuotient(expr){
+  let depth=0;
+  for(let i=0;i<expr.length;i++){
+    if(expr[i]==='(')depth++;
+    else if(expr[i]===')')depth--;
+    else if(expr[i]==='/'&&depth===0){
+      return [expr.slice(0,i).trim(), expr.slice(i+1).trim()];
+    }
+  }
+  return [expr,'1'];
+}
+
+function detectInner(expr){
+  const m = expr.match(/(sin|cos|tan|ln|log|sqrt|e\^)\(([^)]+)\)/);
+  if(m) return m[2];
+  const m2 = expr.match(/\(([^)]+)\)/);
+  if(m2) return m2[1];
+  return 'x';
+}
+
+function detectOuter(expr){
+  const m = expr.match(/^(sin|cos|tan|ln|log|sqrt|e\^)/);
+  if(m) return m[1]+'(u)';
+  if(expr.match(/\^\d+/)) return 'u^n';
+  return 'f(u)';
+}
+
+function showError(msg){
+  const sc = document.getElementById('solution-container');
+  sc.innerHTML = `
+    <div class="step-card" style="border-color:var(--error-border);background:var(--error)">
+      <div class="step-number">ERROR</div>
+      <div class="step-title">⚠️ PARSING ERROR</div>
+      <div class="step-body">${msg}<br><br>
+        <b>Syntax hints:</b><br>
+        • Use * for multiplication: x*sin(x)<br>
+        • Use ^ for powers: x^2<br>
+        • Use parentheses: sin(x+1)<br>
+        • Use pi (not π) and e for constants<br>
+        • Examples: x^3 + 2*x, sin(x)*cos(x)
+      </div>
+    </div>`;
+  setStatus('ERROR ✗');
+}
+
+function setStatus(msg){ document.getElementById('status-msg').textContent = msg; }
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+function sparkles(){
+  const count = 8;
+  const emojis = ['✨','⭐','🌟','💫','★'];
+  for(let i=0;i<count;i++){
+    setTimeout(()=>{
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      s.style.left = (20+Math.random()*60)+'vw';
+      s.style.top = (20+Math.random()*60)+'vh';
+      document.body.appendChild(s);
+      setTimeout(()=>s.remove(), 700);
+    }, i*80);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+updateXpBar();
+updateStats();
+document.getElementById('status-mode').textContent = 'LEARN';
+document.getElementById('status-op').textContent = 'DIFF';
+
+// ═══════════════════════════════════════════════════════════
+// PASSWORD GATE
+// ═══════════════════════════════════════════════════════════
+(function(){
+  // ── ADD YOUR PASSWORDS HERE ──────────────────────────────
+  const PASSWORDS = [
+    'calculus2025',   // password 1
+    'retrocool',      // password 2
+    'mathislife',     // password 3
+  ];
+  // ─────────────────────────────────────────────────────────
+
+  const SESSION_KEY = 'retrocalc_auth';
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_MS   = 5 * 60 * 1000; // 5 minutes
+
+  const gate      = document.getElementById('pw-gate');
+  const input     = document.getElementById('pw-input');
+  const errDiv    = document.getElementById('pw-error');
+  const attDiv    = document.getElementById('pw-attempts');
+
+  // Already authenticated this session?
+  if(sessionStorage.getItem(SESSION_KEY) === 'ok'){
+    gate.classList.add('hidden');
+    return;
+  }
+
+  // Focus input on load
+  setTimeout(()=>input.focus(), 100);
+
+  function getLockout(){
+    try{
+      const d = JSON.parse(localStorage.getItem('retrocalc_lockout')||'{}');
+      return d;
+    }catch(e){ return {}; }
+  }
+  function setLockout(d){ localStorage.setItem('retrocalc_lockout', JSON.stringify(d)); }
+
+  function getAttempts(){
+    const d = getLockout();
+    return { count: d.count||0, until: d.until||0 };
+  }
+
+  function checkPassword(){
+    const val = input.value;
+    const now  = Date.now();
+    let { count, until } = getAttempts();
+
+    // Still locked out?
+    if(until > now){
+      const secs = Math.ceil((until - now) / 1000);
+      const mins = Math.floor(secs / 60);
+      const s    = secs % 60;
+      showError(`LOCKED OUT — wait ${mins}m ${s}s`);
+      input.value = '';
+      return;
+    }
+
+    if(PASSWORDS.includes(val)){
+      // Success
+      setLockout({count:0, until:0});
+      sessionStorage.setItem(SESSION_KEY, 'ok');
+      gate.style.transition = 'opacity 0.4s';
+      gate.style.opacity = '0';
+      setTimeout(()=>gate.classList.add('hidden'), 400);
+      errDiv.textContent = '';
+      attDiv.textContent = '';
+    } else {
+      // Wrong password
+      count++;
+      const remaining = MAX_ATTEMPTS - count;
+
+      if(count >= MAX_ATTEMPTS){
+        const lockedUntil = now + LOCKOUT_MS;
+        setLockout({ count, until: lockedUntil });
+        showError('TOO MANY ATTEMPTS!');
+        attDiv.innerHTML = `<span id="pw-locked-msg">LOCKED FOR 5 MINUTES</span>`;
+        input.disabled = true;
+        document.getElementById('pw-btn').disabled = true;
+        // Start countdown
+        const timer = setInterval(()=>{
+          const now2 = Date.now();
+          const { until: u } = getAttempts();
+          if(now2 >= u){
+            clearInterval(timer);
+            setLockout({count:0,until:0});
+            input.disabled = false;
+            document.getElementById('pw-btn').disabled = false;
+            errDiv.textContent = '';
+            attDiv.textContent = '';
+            input.focus();
+          } else {
+            const s2 = Math.ceil((u - now2)/1000);
+            attDiv.innerHTML = `<span style="color:#ff0066;font-family:'Press Start 2P',monospace;font-size:7px">LOCKED: ${Math.floor(s2/60)}m ${s2%60}s</span>`;
+          }
+        }, 1000);
+      } else {
+        setLockout({ count, until: 0 });
+        showError('WRONG PASSWORD!');
+        attDiv.textContent = remaining + ' attempt' + (remaining===1?'':'s') + ' remaining';
+      }
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  function showError(msg){
+    errDiv.textContent = msg;
+    // Re-trigger animation
+    errDiv.style.animation = 'none';
+    void errDiv.offsetWidth;
+    errDiv.style.animation = 'pwShake 0.3s ease';
+  }
+
+  // Expose to global so HTML onclick can reach it
+  window.checkPassword = checkPassword;
+})();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeRuleLib(null,true);
+});
+</script>
+</body>
+</html>
